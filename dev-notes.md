@@ -81,6 +81,32 @@ Slightly hacky but works. The alternative would be to alias the import.
 - **7 source modules** in src/vsearch/
 - Built in one session
 
+### The Two-Character Bug
+
+First real test against the vault crashed immediately:
+```
+AttributeError: 'OptionInfo' object has no attribute 'strip'
+```
+
+Root cause: `local_first_common.cli` exports `verbose_option` and `debug_option` as **factory functions**, not option values. The correct usage is `verbose: bool = verbose_option()`. I had written `verbose: bool = verbose_option` (without `()`), which passed the function object as Typer's default. Click then tried to type-cast the function to a bool by calling `.strip()` on it.
+
+All tests passed because tests never exercise the CLI entry point directly. Two characters, caught only by actually running the tool.
+
+## First Real Results
+
+After pulling `nomic-embed-text` and indexing the vault (1011 files, 20 skipped, 7 errors on binary-heavy notes):
+
+```
+$ vsearch search "building local ai tools"
+1. [0.72] Lesson Plan/Hello LLM/Hello LLM - Week 4 - AI Tools.md
+2. [0.69] Timeline/2026-03-02.md  (daily note mentioning PydanticAI integration)
+3. [0.68] jamalhansen.com/_series/local-first-ai/Local-First AI - Prep Timeline.md
+4. [0.67] PyTexas/2025 Conference/Demystifying AI Agents with Python Code.md
+5. [0.66] jamalhansen.com/_series/local-first-ai/Local-First AI - Tool Ideas.md
+```
+
+That's exactly right. The daily note got surfaced because it mentioned wanting to integrate PydanticAI into local-first AI work — not keywords, but semantic meaning. That's the whole point.
+
 ## What's Next
 
 - Try it on the real vault (300+ files, real queries)
