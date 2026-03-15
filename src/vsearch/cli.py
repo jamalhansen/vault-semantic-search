@@ -66,8 +66,8 @@ def index(
     vault: Annotated[Optional[str], typer.Option("--vault", "-V", help="Path to vault root")] = None,
     model: Annotated[str, typer.Option("--model", "-m", help="Ollama embedding model")] = DEFAULT_EMBEDDING_MODEL,
     full: Annotated[bool, typer.Option("--full", help="Reindex everything, ignore cache")] = False,
-    verbose: bool = verbose_option,
-    debug: bool = debug_option,
+    verbose: bool = verbose_option(),
+    debug: bool = debug_option(),
 ) -> None:
     """Index vault files for semantic search."""
     vault_root = _resolve_vault(vault)
@@ -115,8 +115,8 @@ def search_cmd(
     json_output: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
     paths_only: Annotated[bool, typer.Option("--paths-only", help="Output file paths only")] = False,
     vault: Annotated[Optional[str], typer.Option("--vault", "-V", help="Path to vault root")] = None,
-    verbose: bool = verbose_option,
-    debug: bool = debug_option,
+    verbose: bool = verbose_option(),
+    debug: bool = debug_option(),
 ) -> None:
     """Search the vault by meaning."""
     vault_root = _resolve_vault(vault)
