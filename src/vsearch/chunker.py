@@ -9,7 +9,7 @@ from typing import Optional
 
 import frontmatter
 
-from vsearch.config import MAX_CHUNK_TOKENS, MIN_CHUNK_TOKENS, WORDS_PER_TOKEN
+from vsearch.config import MAX_CHUNK_CHARS, MAX_CHUNK_TOKENS, MIN_CHUNK_TOKENS, WORDS_PER_TOKEN
 
 
 @dataclass
@@ -56,7 +56,6 @@ def _parse_sections(text: str) -> list[tuple[int, str, str]]:
     A leading 'preamble' before the first header gets level=0, header=''.
     """
     sections: list[tuple[int, str, str]] = []
-    pos = 0
     matches = list(_HEADER_RE.finditer(text))
 
     if not matches:
@@ -112,15 +111,29 @@ def _split_on_paragraphs(text: str, breadcrumb: str) -> list[tuple[str, str]]:
 
 
 def _split_by_words(text: str, breadcrumb: str, max_tokens: int) -> list[tuple[str, str]]:
-    """Split text on word boundaries to enforce max_tokens. Last-resort fallback."""
+    """Split text on word boundaries to enforce max_tokens and MAX_CHUNK_CHARS.
+
+    Uses a char-based limit as a secondary guard for URL-dense or code-heavy content
+    where word count underestimates BERT token count (a URL is 1 word but many tokens).
+    """
     max_words = max(1, int(max_tokens * WORDS_PER_TOKEN))
     words = text.split()
-    if len(words) <= max_words:
+    if len(words) <= max_words and len(text) <= MAX_CHUNK_CHARS:
         return [(text, breadcrumb)]
-    chunks = []
-    for i in range(0, len(words), max_words):
-        piece = " ".join(words[i : i + max_words])
-        chunks.append((piece, breadcrumb))
+    chunks: list[tuple[str, str]] = []
+    current: list[str] = []
+    current_chars = 0
+    for word in words:
+        word_chars = len(word) + (1 if current else 0)  # +1 for space separator
+        if current and (len(current) >= max_words or current_chars + word_chars > MAX_CHUNK_CHARS):
+            chunks.append((" ".join(current), breadcrumb))
+            current = [word]
+            current_chars = len(word)
+        else:
+            current.append(word)
+            current_chars += word_chars
+    if current:
+        chunks.append((" ".join(current), breadcrumb))
     return chunks
 
 
@@ -128,7 +141,7 @@ def _split_large_section(
     body: str, breadcrumb: str, max_tokens: int
 ) -> list[tuple[str, str]]:
     """Recursively split a large section body by H3/H4, then paragraphs."""
-    if _token_estimate(body) <= max_tokens:
+    if _token_estimate(body) <= max_tokens and len(body) <= MAX_CHUNK_CHARS:
         return [(body, breadcrumb)]
 
     # Try splitting on H3/H4 first
@@ -146,14 +159,20 @@ def _split_large_section(
         # Can't split on paragraphs — split on word boundaries as last resort
         return _split_by_words(body, breadcrumb, max_tokens)
 
-    # Merge small paragraphs into chunks under max_tokens
+    # Merge small paragraphs into chunks under max_tokens and MAX_CHUNK_CHARS
     chunks: list[tuple[str, str]] = []
     current_parts: list[str] = []
     for para_text, crumb in paras:
         candidate = "\n\n".join(current_parts + [para_text])
-        if _token_estimate(candidate) > max_tokens and current_parts:
-            chunks.append(("\n\n".join(current_parts), crumb))
-            current_parts = [para_text]
+        if _token_estimate(candidate) > max_tokens or len(candidate) > MAX_CHUNK_CHARS:
+            if current_parts:
+                chunks.append(("\n\n".join(current_parts), crumb))
+                current_parts = []
+            # Paragraph itself may be oversized — word-split it before adding
+            if _token_estimate(para_text) > max_tokens or len(para_text) > MAX_CHUNK_CHARS:
+                chunks.extend(_split_by_words(para_text, crumb, max_tokens))
+            else:
+                current_parts = [para_text]
         else:
             current_parts.append(para_text)
     if current_parts:
@@ -195,7 +214,7 @@ def chunk_file(
                 _update_breadcrumb(breadcrumb_stack, level, header)
             continue
         crumb = _update_breadcrumb(breadcrumb_stack, level, header)
-        if _token_estimate(section_body) > max_tokens:
+        if _token_estimate(section_body) > max_tokens or len(section_body) > MAX_CHUNK_CHARS:
             raw_pieces.extend(_split_large_section(section_body, crumb, max_tokens))
         else:
             raw_pieces.append((section_body, crumb))

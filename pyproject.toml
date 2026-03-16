@@ -17,7 +17,7 @@ dependencies = [
 vsearch = "vsearch.cli:app"
 
 [tool.uv.sources]
-local-first-common = {path = "../local-first-common", editable = true}
+local-first-common = { git = "https://github.com/jamalhansen/local-first-common.git", rev = "main" }
 
 [dependency-groups]
 dev = [

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import fnmatch
 import hashlib
-import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Optional
@@ -13,7 +12,7 @@ import chromadb
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
 
-from vsearch.chunker import Chunk, chunk_file
+from vsearch.chunker import chunk_file
 from vsearch.config import (
     DEFAULT_EMBEDDING_MODEL,
     DEFAULT_SKIP_DIRS,
@@ -24,7 +23,6 @@ from vsearch.config import (
 from vsearch.embeddings import embed_texts
 from vsearch.store import (
     delete_file_chunks,
-    get_collection,
     get_file_metadata,
     upsert_chunks,
 )
@@ -41,7 +39,7 @@ def _load_vsearchignore(vault_root: Path) -> list[str]:
     if not ignore_file.exists():
         return []
     lines = ignore_file.read_text(encoding="utf-8").splitlines()
-    return [l.strip() for l in lines if l.strip() and not l.startswith("#")]
+    return [line.strip() for line in lines if line.strip() and not line.startswith("#")]
 
 
 def _should_skip(path: Path, vault_root: Path, ignore_patterns: list[str]) -> bool:

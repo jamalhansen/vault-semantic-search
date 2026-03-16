@@ -1,13 +1,10 @@
 """Tests for vsearch.indexer."""
 
-from pathlib import Path
-from unittest.mock import patch
 
 import chromadb
 import pytest
 
 from vsearch.indexer import (
-    IndexResult,
     _chunk_id,
     _file_hash,
     _should_skip,
@@ -139,7 +136,7 @@ class TestFileNeedsReindex:
     def test_changed_content_needs_reindex(self, tmp_vault, collection):
         f = tmp_vault / "changed.md"
         f.write_text("# Original\n\nOriginal content.")
-        h = _file_hash(f)
+        _file_hash(f)
         # Store stale mtime (different from current) so the hash path is exercised
         upsert_chunks(
             collection,

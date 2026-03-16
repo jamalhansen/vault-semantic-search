@@ -1,8 +1,6 @@
 """Tests for vsearch.search."""
 
 import json
-from io import StringIO
-from unittest.mock import patch
 
 import chromadb
 import pytest
@@ -140,12 +138,12 @@ class TestPrintResultsPaths:
         results = search("query", populated_collection, top_k=3, embed_fn=fake_embed)
         print_results_paths(results)
         captured = capsys.readouterr()
-        lines = [l for l in captured.out.strip().splitlines() if l]
+        lines = [ln for ln in captured.out.strip().splitlines() if ln]
         assert len(lines) == len(set(lines))  # unique
 
     def test_one_path_per_line(self, populated_collection, capsys):
         results = search("query", populated_collection, top_k=2, embed_fn=fake_embed)
         print_results_paths(results)
         captured = capsys.readouterr()
-        lines = [l for l in captured.out.strip().splitlines() if l]
-        assert all("/" not in l or l.count("\n") == 0 for l in lines)
+        lines = [ln for ln in captured.out.strip().splitlines() if ln]
+        assert all("/" not in ln or ln.count("\n") == 0 for ln in lines)
