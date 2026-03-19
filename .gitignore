@@ -12,3 +12,6 @@ uv.toml
 
 # local-first security requirements
 .venv
+
+# local-first security requirements
+.DS_Store

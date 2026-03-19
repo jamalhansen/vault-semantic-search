@@ -16,9 +16,6 @@ dependencies = [
 [project.scripts]
 vsearch = "vsearch.cli:app"
 
-[tool.uv.sources]
-local-first-common = { git = "https://github.com/jamalhansen/local-first-common.git", rev = "main" }
-
 [dependency-groups]
 dev = [
     "pytest>=8.0",
@@ -36,3 +33,6 @@ testpaths = ["tests"]
 markers = [
     "integration: tests that require Ollama to be running",
 ]
+
+[tool.uv.sources]
+local-first-common = { git = "https://github.com/jamalhansen/local-first-common.git", branch = "main" }
