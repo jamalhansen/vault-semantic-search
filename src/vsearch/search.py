@@ -8,7 +8,6 @@ from typing import Callable, Optional
 
 import chromadb
 from rich.console import Console
-from rich.panel import Panel
 from rich.text import Text
 
 from vsearch.config import DEFAULT_EMBEDDING_MODEL, DEFAULT_TOP_K, SNIPPET_LENGTH

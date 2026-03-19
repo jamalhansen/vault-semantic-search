@@ -76,7 +76,7 @@ Slightly hacky but works. The alternative would be to alias the import.
 
 ## Numbers
 
-- **88 tests** passing (23 chunker, 9 embeddings unit, 22 store, 23 indexer, 21 search)
+- **90 tests** passing (23 chunker, 11 embeddings unit, 22 store, 23 indexer, 21 search)
 - **3 integration tests** (marked `@pytest.mark.integration`, skipped when Ollama unavailable)
 - **7 source modules** in src/vsearch/
 - Built in one session
@@ -92,9 +92,27 @@ Root cause: `local_first_common.cli` exports `verbose_option` and `debug_option`
 
 All tests passed because tests never exercise the CLI entry point directly. Two characters, caught only by actually running the tool.
 
+### The 400 Bug: Three Bugs, One Error Code
+
+After the first real vault run, 7 files produced `400 Bad Request` from Ollama's `/api/embed`. Useless error message. What followed was three rounds of debugging, each revealing a different bug.
+
+**Attempt 1: num_ctx** — Added `"options": {"num_ctx": 8192}` to the embed request. nomic-embed-text's Modelfile already sets `num_ctx 8192`, and Ollama 0.17.7 ignores the `options` field in the embed endpoint anyway. Failed to fix any of the 7 files. Added a batch-splitting fallback (`if status == 400 and len(texts) > 1: retry singletons`) as a safety net regardless.
+
+**Root cause 1: wrong tokenizer assumption.** `WORDS_PER_TOKEN = 0.75` was calibrated for BPE (GPT-style tokenizers), where 1 word ≈ 1.33 tokens. nomic-embed-text uses BERT **WordPiece**, which tokenizes ~2.5× more aggressively — especially on technical content, code blocks, and markdown syntax. A 750-word section was estimating to 1000 tokens but actually tokenizing to 2500+ real BERT tokens.
+
+Fix: `WORDS_PER_TOKEN = 0.4` (1 word ≈ 2.5 BERT tokens). Now max_words = 400 per chunk. This fixed 5 of the 7 files.
+
+**Root cause 2: oversized first paragraph.** In `_split_large_section`, the paragraph merge loop had `if _token_estimate(candidate) > max_tokens and current_parts:`. When the very first paragraph was already too large, `current_parts` was empty — the `and current_parts` check was falsy — so the oversized paragraph bypassed word-boundary splitting and was returned as-is. Fixed by separating the "flush current" and "split this paragraph" decisions.
+
+**Root cause 3: word count is meaningless for URL-dense content.** The Gemini-generated archive file was a 81k-char table of URLs and favicons. URLs are single "words" in Python's `.split()`, but BERT tokenizes each URL segment (every `/`, `.`, `?=`) separately: ~2 chars/BERT token vs ~3-4 for prose. A 393-word, 5977-char paragraph had a token estimate of 982 (safely under 1000) but exceeded 2048 actual BERT tokens.
+
+Fix: added `MAX_CHUNK_CHARS = 4000` as a hard cap alongside the token estimate. This cap was applied in four places: the splitting trigger in `chunk_file`, the termination condition in `_split_large_section`, the flush condition in the paragraph merge loop, and inside `_split_by_words` itself (now enforces both word count and char count).
+
+Final result: 1019 files, 0 errors.
+
 ## First Real Results
 
-After pulling `nomic-embed-text` and indexing the vault (1011 files, 20 skipped, 7 errors on binary-heavy notes):
+After pulling `nomic-embed-text` and fixing the chunker, full reindex: 1019 files, 20 skipped, 0 errors.
 
 ```
 $ vsearch search "building local ai tools"
@@ -109,10 +127,9 @@ That's exactly right. The daily note got surfaced because it mentioned wanting t
 
 ## What's Next
 
-- Try it on the real vault (300+ files, real queries)
-- Tune the minimum chunk size — 50 tokens might be too small for some files
 - Consider storing chunk positions for better "jump to source" UX
 - The `series-cross-link-suggester` can import from `vsearch.store` to reuse the same index
+- **MCP server** — expose `search_vault(query, top_k)` and `get_vault_stats()` as MCP tools so Claude can query the vault directly in conversation. The store module is already importable; the wrapper would be thin. Natural next step once the index is stable.
 
 ## Rough Timeline
 

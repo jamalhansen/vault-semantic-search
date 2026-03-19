@@ -9,3 +9,6 @@ dist/
 .envrc
 CLAUDE.md
 uv.toml
+
+# local-first security requirements
+.venv

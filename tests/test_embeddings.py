@@ -78,6 +78,38 @@ class TestEmbedBatch:
             with pytest.raises(OllamaError, match="Ollama returned an error"):
                 _embed_batch(["text"], "nomic-embed-text")
 
+    def test_400_batch_falls_back_to_singleton_calls(self):
+        """A 400 on a multi-item batch retries each item individually."""
+        good_embed = [[0.1, 0.2]]
+        call_count = 0
+
+        def smart_post(url, json, timeout):
+            nonlocal call_count
+            call_count += 1
+            mock = MagicMock()
+            if len(json["input"]) > 1:
+                # Simulate 400 for multi-item batch
+                mock.status_code = 400
+                mock.raise_for_status = MagicMock()
+            else:
+                mock.status_code = 200
+                mock.json.return_value = {"embeddings": good_embed}
+                mock.raise_for_status = MagicMock()
+            return mock
+
+        with patch("httpx.post", side_effect=smart_post):
+            result = _embed_batch(["text1", "text2"], "nomic-embed-text")
+
+        assert result == [good_embed[0], good_embed[0]]
+        assert call_count == 3  # 1 batch + 2 singletons
+
+    def test_400_single_raises_ollama_error(self):
+        """A 400 on a single-item batch still raises OllamaError."""
+        mock = self._mock_response([], status_code=400)
+        with patch("httpx.post", return_value=mock):
+            with pytest.raises(OllamaError):
+                _embed_batch(["text"], "nomic-embed-text")
+
     def test_passes_model_to_ollama(self):
         fake_embeds = [[0.1]]
         captured = {}
@@ -95,6 +127,7 @@ class TestEmbedBatch:
 
         assert captured["json"]["model"] == "mxbai-embed-large"
         assert captured["json"]["input"] == ["hello"]
+        assert "num_ctx" in captured["json"]["options"]
 
 
 @pytest.mark.integration

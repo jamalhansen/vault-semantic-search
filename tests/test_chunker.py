@@ -2,9 +2,8 @@
 
 from pathlib import Path
 
-import pytest
 
-from vsearch.chunker import Chunk, _extract_frontmatter, _parse_sections, chunk_file
+from vsearch.chunker import _extract_frontmatter, _parse_sections, chunk_file
 
 
 class TestExtractFrontmatter:

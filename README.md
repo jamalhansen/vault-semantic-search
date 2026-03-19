@@ -126,11 +126,11 @@ Obsidian Vault → Chunker → Ollama /api/embed → ChromaDB
 
 **Storage:** ChromaDB persists to `~/.local/share/vsearch/chromadb/` (XDG-compliant, outside the vault).
 
-**Chunking:** Markdown-aware. Splits on H1/H2 headers first, then H3/H4, then paragraphs, then word boundaries. YAML frontmatter is stored as metadata, not embedded. Minimum chunk size: 50 tokens.
+**Chunking:** Markdown-aware. Splits on H1/H2 headers first, then H3/H4, then paragraphs, then word boundaries. YAML frontmatter is stored as metadata, not embedded. Minimum chunk size: 50 tokens. Hard caps: 400 words and 4000 characters per chunk (the char cap handles URL-dense content where BERT tokenizes aggressively regardless of word count).
 
-**Incremental indexing:** Files are re-embedded only when their content hash changes. A full index of 300 files takes a few minutes; incremental runs take seconds.
+**Incremental indexing:** Files are re-embedded only when their content hash changes. A full index of 1000+ files takes a few minutes; incremental runs take seconds.
 
-**Embedding model:** Default is `nomic-embed-text` (768 dimensions, Ollama). Swap with `--model`.
+**Embedding model:** Default is `nomic-embed-text` (768 dimensions, Ollama, BERT WordPiece tokenization). Swap with `--model`.
 
 ## Project Structure
 

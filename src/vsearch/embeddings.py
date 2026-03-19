@@ -8,6 +8,7 @@ from vsearch.config import (
     EMBEDDING_BATCH_SIZE,
     DEFAULT_EMBEDDING_MODEL,
     OLLAMA_EMBED_URL,
+    OLLAMA_EMBED_NUM_CTX,
     OLLAMA_TIMEOUT,
 )
 
@@ -42,7 +43,11 @@ def _embed_batch(texts: list[str], model: str) -> list[list[float]]:
     try:
         response = httpx.post(
             OLLAMA_EMBED_URL,
-            json={"model": model, "input": texts},
+            json={
+                "model": model,
+                "input": texts,
+                "options": {"num_ctx": OLLAMA_EMBED_NUM_CTX},
+            },
             timeout=OLLAMA_TIMEOUT,
         )
     except httpx.ConnectError:
@@ -60,6 +65,13 @@ def _embed_batch(texts: list[str], model: str) -> list[list[float]]:
             f"Model '{model}' not found in Ollama. "
             f"Pull it with: ollama pull {model}"
         )
+
+    if response.status_code == 400 and len(texts) > 1:
+        # A chunk in this batch may exceed the context window — retry one at a time
+        results = []
+        for text in texts:
+            results.extend(_embed_batch([text], model))
+        return results
 
     try:
         response.raise_for_status()
