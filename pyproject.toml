@@ -19,6 +19,7 @@ vsearch = "vsearch.cli:app"
 [dependency-groups]
 dev = [
     "pytest>=8.0",
+    "pytest-cov>=7.0.0",
 ]
 
 [build-system]
