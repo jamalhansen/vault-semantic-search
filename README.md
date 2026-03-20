@@ -3,7 +3,7 @@
 Semantic search for your Obsidian vault using local embeddings. Search by meaning instead of keywords.
 
 ```
-$ uv run vsearch search "that discussion about NULL handling in pandas"
+$ uv run python src/main.py search "that discussion about NULL handling in pandas"
 
 Results for: "that discussion about NULL handling in pandas"
 
@@ -42,41 +42,41 @@ uv sync
 
 ```bash
 # First run: full index
-uv run vsearch index
+uv run python src/main.py index
 
 # Subsequent runs: incremental (only changed files)
-uv run vsearch index
+uv run python src/main.py index
 
 # Force full reindex
-uv run vsearch index --full
+uv run python src/main.py index --full
 
 # Use a different embedding model
-uv run vsearch index --model mxbai-embed-large
+uv run python src/main.py index --model mxbai-embed-large
 
 # Explicit vault path
-uv run vsearch index --vault ~/my-vault
+uv run python src/main.py index --vault ~/my-vault
 ```
 
 ### Search
 
 ```bash
 # Natural language query
-uv run vsearch search "baby milestones"
+uv run python src/main.py search "baby milestones"
 
 # More results
-uv run vsearch search "window functions SQL" --top-k 10
+uv run python src/main.py search "window functions SQL" --top-k 10
 
 # JSON output (for piping)
-uv run vsearch search "sourdough hydration" --json
+uv run python src/main.py search "sourdough hydration" --json
 
 # Paths only (for piping to fzf or xargs)
-uv run vsearch search "authentication flow" --paths-only
+uv run python src/main.py search "authentication flow" --paths-only
 ```
 
 ### Stats
 
 ```bash
-uv run vsearch stats
+uv run python src/main.py stats
 ```
 
 ## Configuration
@@ -110,10 +110,10 @@ By default, these are always excluded:
 ## CLI Reference
 
 ```
-vsearch index   [--vault PATH] [--model MODEL] [--full] [--verbose]
-vsearch search  QUERY [--vault PATH] [--model MODEL] [--top-k N]
-                      [--json] [--paths-only] [--verbose]
-vsearch stats   [--vault PATH] [--model MODEL]
+uv run python src/main.py index   [--vault PATH] [--model MODEL] [--full] [--verbose]
+uv run python src/main.py search  QUERY [--vault PATH] [--model MODEL] [--top-k N]
+                                  [--json] [--paths-only] [--verbose]
+uv run python src/main.py stats   [--vault PATH] [--model MODEL]
 ```
 
 ## Architecture
@@ -134,24 +134,24 @@ Obsidian Vault → Chunker → Ollama /api/embed → ChromaDB
 
 ## Project Structure
 
-```
-src/vsearch/
-├── cli.py          # Typer CLI (index, search, stats)
-├── config.py       # Defaults, paths, constants
-├── chunker.py      # Markdown-aware chunking
-├── embeddings.py   # Ollama /api/embed client
-├── store.py        # ChromaDB wrapper (importable by other tools)
-├── indexer.py      # Vault walker + orchestration
-└── search.py       # Query + result formatting
+This tool follows the [Local-First AI project blueprint](https://github.com/jamalhansen/local-first-common).
 
-tests/
-├── conftest.py
-├── test_chunker.py
-├── test_embeddings.py   # unit + @integration tests
-├── test_indexer.py
-├── test_search.py
-├── test_store.py
-└── fixtures/sample_vault/   # Minimal fake vault
+```
+vault-semantic-search/
+├── src/
+│   ├── main.py          # Typer CLI entry point (index, search, stats)
+│   ├── logic.py         # Search and index orchestration
+│   ├── config.py        # Defaults, paths, constants
+│   ├── chunker.py       # Markdown-aware chunking
+│   ├── embeddings.py    # Ollama /api/embed client
+│   ├── store.py         # ChromaDB wrapper (importable by other tools)
+│   ├── indexer.py       # Vault walker
+│   └── search.py        # Query + result formatting
+├── pyproject.toml       # Managed by uv
+└── tests/
+    ├── conftest.py
+    ├── test_main.py     # CLI integration tests via MockProvider
+    └── ...
 ```
 
 ## Running tests
