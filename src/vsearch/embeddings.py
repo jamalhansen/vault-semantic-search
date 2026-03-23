@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import httpx
 
+from local_first_common.tracking import register_tool, timed_run
 from vsearch.config import (
     EMBEDDING_BATCH_SIZE,
     DEFAULT_EMBEDDING_MODEL,
@@ -11,6 +12,9 @@ from vsearch.config import (
     OLLAMA_EMBED_NUM_CTX,
     OLLAMA_TIMEOUT,
 )
+
+
+_TOOL = register_tool("vault-semantic-search")
 
 
 class OllamaError(RuntimeError):
@@ -41,15 +45,17 @@ def embed_texts(
 
 def _embed_batch(texts: list[str], model: str) -> list[list[float]]:
     try:
-        response = httpx.post(
-            OLLAMA_EMBED_URL,
-            json={
-                "model": model,
-                "input": texts,
-                "options": {"num_ctx": OLLAMA_EMBED_NUM_CTX},
-            },
-            timeout=OLLAMA_TIMEOUT,
-        )
+        with timed_run("vault-semantic-search", model) as run:
+            response = httpx.post(
+                OLLAMA_EMBED_URL,
+                json={
+                    "model": model,
+                    "input": texts,
+                    "options": {"num_ctx": OLLAMA_EMBED_NUM_CTX},
+                },
+                timeout=OLLAMA_TIMEOUT,
+            )
+            run.item_count = len(texts)
     except httpx.ConnectError:
         raise OllamaError(
             "Ollama is not running. Start it with `ollama serve` or check that it's installed."
