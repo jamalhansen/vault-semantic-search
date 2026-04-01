@@ -15,3 +15,8 @@ uv.toml
 
 # local-first security requirements
 .DS_Store
+
+# Workspace standard ignores
+*.pyd
+.coverage
+.ruff_cache/
