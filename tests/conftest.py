@@ -1,5 +1,6 @@
 """Shared fixtures for vault-semantic-search tests."""
 
+from local_first_common.testing import isolate_tracking_db  # noqa: F401
 from pathlib import Path
 
 import pytest
