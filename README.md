@@ -3,7 +3,7 @@
 Semantic search for your Obsidian vault using local embeddings. Search by meaning instead of keywords.
 
 ```
-$ uv run python src/main.py search "that discussion about NULL handling in pandas"
+$ uv run vsearch search "that discussion about NULL handling in pandas"
 
 Results for: "that discussion about NULL handling in pandas"
 
@@ -42,41 +42,41 @@ uv sync
 
 ```bash
 # First run: full index
-uv run python src/main.py index
+uv run vsearch index
 
 # Subsequent runs: incremental (only changed files)
-uv run python src/main.py index
+uv run vsearch index
 
 # Force full reindex
-uv run python src/main.py index --full
+uv run vsearch index --full
 
 # Use a different embedding model
-uv run python src/main.py index --model mxbai-embed-large
+uv run vsearch index --model mxbai-embed-large
 
 # Explicit vault path
-uv run python src/main.py index --vault ~/my-vault
+uv run vsearch index --vault ~/my-vault
 ```
 
 ### Search
 
 ```bash
 # Natural language query
-uv run python src/main.py search "baby milestones"
+uv run vsearch search "baby milestones"
 
 # More results
-uv run python src/main.py search "window functions SQL" --top-k 10
+uv run vsearch search "window functions SQL" --top-k 10
 
 # JSON output (for piping)
-uv run python src/main.py search "sourdough hydration" --json
+uv run vsearch search "sourdough hydration" --json
 
 # Paths only (for piping to fzf or xargs)
-uv run python src/main.py search "authentication flow" --paths-only
+uv run vsearch search "authentication flow" --paths-only
 ```
 
 ### Stats
 
 ```bash
-uv run python src/main.py stats
+uv run vsearch stats
 ```
 
 ## Configuration
@@ -110,10 +110,10 @@ By default, these are always excluded:
 ## CLI Reference
 
 ```
-uv run python src/main.py index   [--vault PATH] [--model MODEL] [--full] [--verbose]
-uv run python src/main.py search  QUERY [--vault PATH] [--model MODEL] [--top-k N]
+uv run vsearch index   [--vault PATH] [--model MODEL] [--full] [--verbose]
+uv run vsearch search  QUERY [--vault PATH] [--model MODEL] [--top-k N]
                                   [--json] [--paths-only] [--verbose]
-uv run python src/main.py stats   [--vault PATH] [--model MODEL]
+uv run vsearch stats   [--vault PATH] [--model MODEL]
 ```
 
 ## Architecture
