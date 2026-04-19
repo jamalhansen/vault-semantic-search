@@ -9,15 +9,24 @@ from typing import Optional
 
 import frontmatter
 
-from vsearch.config import MAX_CHUNK_CHARS, MAX_CHUNK_TOKENS, MIN_CHUNK_TOKENS, WORDS_PER_TOKEN
+from vsearch.config import (
+    MAX_CHUNK_CHARS,
+    MAX_CHUNK_TOKENS,
+    MIN_CHUNK_TOKENS,
+    WORDS_PER_TOKEN,
+)
+
+
+class ChunkParseError(Exception):
+    """Raised when frontmatter or content parsing fails for a vault file."""
 
 
 @dataclass
 class Chunk:
     text: str
-    source_file: str          # relative path from vault root
-    breadcrumb: str           # e.g. "Design Principles > CLI Conventions"
-    chunk_index: int          # position within the file
+    source_file: str  # relative path from vault root
+    breadcrumb: str  # e.g. "Design Principles > CLI Conventions"
+    chunk_index: int  # position within the file
     frontmatter_meta: dict = field(default_factory=dict)
 
     def token_estimate(self) -> int:
@@ -28,7 +37,15 @@ class Chunk:
 # Frontmatter helpers
 # ---------------------------------------------------------------------------
 
-_FRONTMATTER_FIELDS = {"title", "tags", "category", "status", "date", "created", "modified"}
+_FRONTMATTER_FIELDS = {
+    "title",
+    "tags",
+    "category",
+    "status",
+    "date",
+    "created",
+    "modified",
+}
 
 
 def _extract_frontmatter(content: str) -> tuple[dict, str]:
@@ -62,7 +79,7 @@ def _parse_sections(text: str) -> list[tuple[int, str, str]]:
         return [(0, "", text.strip())]
 
     # Preamble before first header
-    preamble = text[:matches[0].start()].strip()
+    preamble = text[: matches[0].start()].strip()
     if preamble:
         sections.append((0, "", preamble))
 
@@ -81,6 +98,7 @@ def _parse_sections(text: str) -> list[tuple[int, str, str]]:
 # Breadcrumb tracking
 # ---------------------------------------------------------------------------
 
+
 def _update_breadcrumb(stack: list[tuple[int, str]], level: int, header: str) -> str:
     """Maintain a header stack and return the current breadcrumb string."""
     if level == 0:
@@ -96,6 +114,7 @@ def _update_breadcrumb(stack: list[tuple[int, str]], level: int, header: str) ->
 # Core chunking
 # ---------------------------------------------------------------------------
 
+
 def _words(text: str) -> int:
     return len(text.split())
 
@@ -110,7 +129,9 @@ def _split_on_paragraphs(text: str, breadcrumb: str) -> list[tuple[str, str]]:
     return [(p, breadcrumb) for p in paras]
 
 
-def _split_by_words(text: str, breadcrumb: str, max_tokens: int) -> list[tuple[str, str]]:
+def _split_by_words(
+    text: str, breadcrumb: str, max_tokens: int
+) -> list[tuple[str, str]]:
     """Split text on word boundaries to enforce max_tokens and MAX_CHUNK_CHARS.
 
     Uses a char-based limit as a secondary guard for URL-dense or code-heavy content
@@ -125,7 +146,9 @@ def _split_by_words(text: str, breadcrumb: str, max_tokens: int) -> list[tuple[s
     current_chars = 0
     for word in words:
         word_chars = len(word) + (1 if current else 0)  # +1 for space separator
-        if current and (len(current) >= max_words or current_chars + word_chars > MAX_CHUNK_CHARS):
+        if current and (
+            len(current) >= max_words or current_chars + word_chars > MAX_CHUNK_CHARS
+        ):
             chunks.append((" ".join(current), breadcrumb))
             current = [word]
             current_chars = len(word)
@@ -169,7 +192,10 @@ def _split_large_section(
                 chunks.append(("\n\n".join(current_parts), crumb))
                 current_parts = []
             # Paragraph itself may be oversized — word-split it before adding
-            if _token_estimate(para_text) > max_tokens or len(para_text) > MAX_CHUNK_CHARS:
+            if (
+                _token_estimate(para_text) > max_tokens
+                or len(para_text) > MAX_CHUNK_CHARS
+            ):
                 chunks.extend(_split_by_words(para_text, crumb, max_tokens))
             else:
                 current_parts = [para_text]
@@ -214,7 +240,10 @@ def chunk_file(
                 _update_breadcrumb(breadcrumb_stack, level, header)
             continue
         crumb = _update_breadcrumb(breadcrumb_stack, level, header)
-        if _token_estimate(section_body) > max_tokens or len(section_body) > MAX_CHUNK_CHARS:
+        if (
+            _token_estimate(section_body) > max_tokens
+            or len(section_body) > MAX_CHUNK_CHARS
+        ):
             raw_pieces.extend(_split_large_section(section_body, crumb, max_tokens))
         else:
             raw_pieces.append((section_body, crumb))

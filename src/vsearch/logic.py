@@ -15,7 +15,12 @@ from local_first_common.obsidian import find_vault_root
 from vsearch.config import DEFAULT_EMBEDDING_MODEL, DEFAULT_TOP_K, VSEARCH_VAULT_ENV
 from vsearch.embeddings import OllamaError
 from vsearch.indexer import index_vault
-from vsearch.search import print_results, print_results_json, print_results_paths, search
+from vsearch.search import (
+    print_results,
+    print_results_json,
+    print_results_paths,
+    search,
+)
 from vsearch.store import collection_stats, get_client, get_collection
 
 app = typer.Typer(
@@ -25,9 +30,18 @@ app = typer.Typer(
 console = Console()
 
 
+class VSearchError(Exception):
+    """Base typed error for vault-semantic-search."""
+
+
+class VaultDetectionError(VSearchError):
+    """Raised when the vault root cannot be resolved."""
+
+
 # ---------------------------------------------------------------------------
 # Vault resolution helper
 # ---------------------------------------------------------------------------
+
 
 def _resolve_vault(vault_str: Optional[str]) -> Path:
     """Resolve vault root: CLI flag > VSEARCH_VAULT env > auto-detect."""
@@ -48,6 +62,8 @@ def _resolve_vault(vault_str: Optional[str]) -> Path:
 
     try:
         return find_vault_root()
+    except VaultDetectionError:
+        raise
     except Exception:
         console.print(
             "[red]Error:[/red] Could not auto-detect Obsidian vault. "
@@ -60,11 +76,18 @@ def _resolve_vault(vault_str: Optional[str]) -> Path:
 # index command
 # ---------------------------------------------------------------------------
 
+
 @app.command()
 def index(
-    vault: Annotated[Optional[str], typer.Option("--vault", "-V", help="Path to vault root")] = None,
-    model: Annotated[str, typer.Option("--model", "-m", help="Ollama embedding model")] = DEFAULT_EMBEDDING_MODEL,
-    full: Annotated[bool, typer.Option("--full", help="Reindex everything, ignore cache")] = False,
+    vault: Annotated[
+        Optional[str], typer.Option("--vault", "-V", help="Path to vault root")
+    ] = None,
+    model: Annotated[
+        str, typer.Option("--model", "-m", help="Ollama embedding model")
+    ] = DEFAULT_EMBEDDING_MODEL,
+    full: Annotated[
+        bool, typer.Option("--full", help="Reindex everything, ignore cache")
+    ] = False,
     verbose: Annotated[bool, verbose_option()] = False,
     debug: Annotated[bool, debug_option()] = False,
 ) -> None:
@@ -74,7 +97,9 @@ def index(
     if verbose:
         console.print(f"Vault: [cyan]{vault_root}[/cyan]")
         console.print(f"Model: [cyan]{model}[/cyan]")
-        console.print(f"Mode:  [cyan]{'full reindex' if full else 'incremental'}[/cyan]\n")
+        console.print(
+            f"Mode:  [cyan]{'full reindex' if full else 'incremental'}[/cyan]\n"
+        )
 
     client = get_client()
     collection = get_collection(client, model=model, vault_root=str(vault_root))
@@ -106,14 +131,23 @@ def index(
 # search command
 # ---------------------------------------------------------------------------
 
+
 @app.command()
 def search_cmd(
     query: Annotated[str, typer.Argument(help="Natural language search query")],
-    top_k: Annotated[int, typer.Option("--top-k", "-k", help="Number of results")] = DEFAULT_TOP_K,
-    model: Annotated[str, typer.Option("--model", "-m", help="Ollama embedding model")] = DEFAULT_EMBEDDING_MODEL,
+    top_k: Annotated[
+        int, typer.Option("--top-k", "-k", help="Number of results")
+    ] = DEFAULT_TOP_K,
+    model: Annotated[
+        str, typer.Option("--model", "-m", help="Ollama embedding model")
+    ] = DEFAULT_EMBEDDING_MODEL,
     json_output: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
-    paths_only: Annotated[bool, typer.Option("--paths-only", help="Output file paths only")] = False,
-    vault: Annotated[Optional[str], typer.Option("--vault", "-V", help="Path to vault root")] = None,
+    paths_only: Annotated[
+        bool, typer.Option("--paths-only", help="Output file paths only")
+    ] = False,
+    vault: Annotated[
+        Optional[str], typer.Option("--vault", "-V", help="Path to vault root")
+    ] = None,
     verbose: Annotated[bool, verbose_option()] = False,
     debug: Annotated[bool, debug_option()] = False,
 ) -> None:
@@ -152,10 +186,15 @@ def search_cmd(
 # stats command
 # ---------------------------------------------------------------------------
 
+
 @app.command()
 def stats(
-    vault: Annotated[Optional[str], typer.Option("--vault", "-V", help="Path to vault root")] = None,
-    model: Annotated[str, typer.Option("--model", "-m", help="Ollama embedding model")] = DEFAULT_EMBEDDING_MODEL,
+    vault: Annotated[
+        Optional[str], typer.Option("--vault", "-V", help="Path to vault root")
+    ] = None,
+    model: Annotated[
+        str, typer.Option("--model", "-m", help="Ollama embedding model")
+    ] = DEFAULT_EMBEDDING_MODEL,
 ) -> None:
     """Show index statistics."""
     vault_root = _resolve_vault(vault)

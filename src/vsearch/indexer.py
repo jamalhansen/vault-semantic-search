@@ -10,7 +10,13 @@ from typing import Callable, Optional
 
 import chromadb
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
+from rich.progress import (
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    BarColumn,
+    TaskProgressColumn,
+)
 
 from vsearch.chunker import chunk_file
 from vsearch.config import (
@@ -30,9 +36,14 @@ from vsearch.store import (
 console = Console()
 
 
+class IndexFileError(Exception):
+    """Raised when a vault file cannot be indexed."""
+
+
 # ---------------------------------------------------------------------------
 # File filtering
 # ---------------------------------------------------------------------------
+
 
 def _load_vsearchignore(vault_root: Path) -> list[str]:
     ignore_file = vault_root / VSEARCH_IGNORE_FILE
@@ -70,7 +81,9 @@ def _should_skip(path: Path, vault_root: Path, ignore_patterns: list[str]) -> bo
     # Apply .vsearchignore patterns
     relative_str = str(relative)
     for pattern in ignore_patterns:
-        if fnmatch.fnmatch(relative_str, pattern) or fnmatch.fnmatch(path.name, pattern):
+        if fnmatch.fnmatch(relative_str, pattern) or fnmatch.fnmatch(
+            path.name, pattern
+        ):
             return True
 
     return False
@@ -89,6 +102,7 @@ def walk_vault(vault_root: Path) -> list[Path]:
 # ---------------------------------------------------------------------------
 # Change detection
 # ---------------------------------------------------------------------------
+
 
 def _file_hash(path: Path) -> str:
     h = hashlib.md5()
@@ -125,6 +139,7 @@ def file_needs_reindex(
 # Chunk → ChromaDB ID
 # ---------------------------------------------------------------------------
 
+
 def _chunk_id(source_file: str, chunk_index: int) -> str:
     return f"{source_file}::chunk::{chunk_index}"
 
@@ -132,6 +147,7 @@ def _chunk_id(source_file: str, chunk_index: int) -> str:
 # ---------------------------------------------------------------------------
 # Indexing
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class IndexResult:
@@ -181,7 +197,9 @@ def index_vault(
             progress.update(task, description=f"[cyan]{relative}[/cyan]")
 
             try:
-                if not full and not file_needs_reindex(file_path, collection, vault_root):
+                if not full and not file_needs_reindex(
+                    file_path, collection, vault_root
+                ):
                     result.skipped += 1
                     progress.advance(task)
                     continue
@@ -224,7 +242,9 @@ def index_vault(
                 result.indexed += 1
 
                 if verbose:
-                    console.print(f"  [green]✓[/green] {relative} ({len(chunks)} chunks)")
+                    console.print(
+                        f"  [green]✓[/green] {relative} ({len(chunks)} chunks)"
+                    )
 
             except Exception as e:
                 result.errors += 1

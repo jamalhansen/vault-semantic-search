@@ -3,7 +3,33 @@
 from pathlib import Path
 
 
-from vsearch.chunker import _extract_frontmatter, _parse_sections, chunk_file
+from vsearch.chunker import (
+    ChunkParseError,
+    _extract_frontmatter,
+    _parse_sections,
+    chunk_file,
+)
+from vsearch.indexer import IndexFileError
+from vsearch.logic import VSearchError, VaultDetectionError
+
+
+class TestTypedErrors:
+    def test_vsearch_error_hierarchy(self):
+        err = VSearchError("base")
+        assert isinstance(err, Exception)
+
+    def test_vault_detection_error_is_vsearch_error(self):
+        err = VaultDetectionError("no vault")
+        assert isinstance(err, VSearchError)
+        assert "no vault" in str(err)
+
+    def test_chunk_parse_error_is_exception(self):
+        err = ChunkParseError("bad yaml")
+        assert isinstance(err, Exception)
+
+    def test_index_file_error_is_exception(self):
+        err = IndexFileError("embed failed")
+        assert isinstance(err, Exception)
 
 
 class TestExtractFrontmatter:
