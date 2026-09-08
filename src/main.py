@@ -1,4 +1,4 @@
-from vsearch.logic import app
+from vsearch.cli import app
 
 if __name__ == "__main__":
     app()

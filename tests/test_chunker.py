@@ -10,7 +10,7 @@ from vsearch.chunker import (
     chunk_file,
 )
 from vsearch.indexer import IndexFileError
-from vsearch.logic import VSearchError, VaultDetectionError
+from vsearch.cli import VSearchError, VaultDetectionError
 
 
 class TestTypedErrors:

@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [project.scripts]
-vsearch = "vsearch.logic:app"
+vsearch = "vsearch.cli:app"
 
 [dependency-groups]
 dev = [
