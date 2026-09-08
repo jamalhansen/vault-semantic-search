@@ -147,3 +147,15 @@ class TestPrintResultsPaths:
         captured = capsys.readouterr()
         lines = [ln for ln in captured.out.strip().splitlines() if ln]
         assert all("/" not in ln or ln.count("\n") == 0 for ln in lines)
+
+    def test_stats_json(self, populated_collection, tmp_path, capsys):
+        from typer.testing import CliRunner
+        from vsearch.logic import app
+        import unittest.mock as mock
+
+        runner = CliRunner()
+        with mock.patch("vsearch.logic.get_collection", return_value=populated_collection):
+            res = runner.invoke(app, ["stats", "--vault", str(tmp_path), "--json"])
+            assert res.exit_code == 0
+            assert '"total_chunks"' in res.stdout
+

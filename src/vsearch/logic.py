@@ -7,9 +7,10 @@ from pathlib import Path
 from typing import Annotated, Optional
 
 import typer
+import json
 from rich.console import Console
 
-from local_first_common.cli import debug_option, verbose_option
+from local_first_common.cli import debug_option, json_option, verbose_option
 from local_first_common.obsidian import find_vault_root
 
 from vsearch.config import DEFAULT_EMBEDDING_MODEL, DEFAULT_TOP_K, VSEARCH_VAULT_ENV
@@ -141,7 +142,7 @@ def search_cmd(
     model: Annotated[
         str, typer.Option("--model", "-m", help="Ollama embedding model")
     ] = DEFAULT_EMBEDDING_MODEL,
-    json_output: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
+    json_output: Annotated[bool, json_option()] = False,
     paths_only: Annotated[
         bool, typer.Option("--paths-only", help="Output file paths only")
     ] = False,
@@ -195,6 +196,7 @@ def stats(
     model: Annotated[
         str, typer.Option("--model", "-m", help="Ollama embedding model")
     ] = DEFAULT_EMBEDDING_MODEL,
+    json_output: Annotated[bool, json_option()] = False,
 ) -> None:
     """Show index statistics."""
     vault_root = _resolve_vault(vault)
@@ -204,12 +206,17 @@ def stats(
 
     s = collection_stats(collection)
 
+    if json_output:
+        print(json.dumps(s, indent=2))
+        return
+
     console.print("\n[bold]Vault Index Stats[/bold]\n")
     console.print(f"  Total chunks : [cyan]{s['total_chunks']}[/cyan]")
     console.print(f"  Total files  : [cyan]{s['total_files']}[/cyan]")
     console.print(f"  Model        : [cyan]{s['embedding_model']}[/cyan]")
     console.print(f"  Vault        : [cyan]{s['vault_root']}[/cyan]")
     console.print()
+
 
 
 # Register 'search' as the public-facing name for search_cmd
