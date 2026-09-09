@@ -5,11 +5,14 @@ import json
 import chromadb
 import pytest
 
+from vsearch.bm25 import get_in_memory_bm25_connection, upsert_bm25_chunks
 from vsearch.search import (
     SearchResult,
     _make_snippet,
+    print_results,
     print_results_json,
     print_results_paths,
+    reciprocal_rank_fusion,
     search,
 )
 from vsearch.store import get_collection, upsert_chunks
@@ -158,4 +161,99 @@ class TestPrintResultsPaths:
             res = runner.invoke(app, ["stats", "--vault", str(tmp_path), "--json"])
             assert res.exit_code == 0
             assert '"total_chunks"' in res.stdout
+
+
+@pytest.fixture
+def populated_bm25():
+    conn = get_in_memory_bm25_connection()
+    upsert_bm25_chunks(
+        conn,
+        ids=["sql.md::chunk::0", "baby.md::chunk::0", "bread.md::chunk::0"],
+        documents=[
+            "NULL values in SQL require IS NULL, not = NULL. Pandas uses NaN.",
+            "Baby milestones at six months include sitting with support.",
+            "Sourdough starter requires daily feeding at 1:1:1 ratio.",
+        ],
+        metadatas=[
+            {"source_file": "sql.md", "breadcrumb": "NULL Values > Python Comparison", "chunk_index": 0},
+            {"source_file": "baby.md", "breadcrumb": "Milestones > Six Months", "chunk_index": 0},
+            {"source_file": "bread.md", "breadcrumb": "Sourdough > Starter", "chunk_index": 0},
+        ],
+    )
+    return conn
+
+
+class TestReciprocalRankFusion:
+    def test_rrf_combines_ranks(self):
+        dense = [
+            {"id": "c1", "document": "doc1", "metadata": {}, "score": 0.9},
+            {"id": "c2", "document": "doc2", "metadata": {}, "score": 0.8},
+        ]
+        bm25 = [
+            {"id": "c2", "document": "doc2", "metadata": {}, "score": 10.0},
+            {"id": "c3", "document": "doc3", "metadata": {}, "score": 5.0},
+        ]
+        fused = reciprocal_rank_fusion(dense, bm25, top_k=3, k=60)
+        # c2 appears in both lists: rank 2 in dense (1/62) and rank 1 in bm25 (1/61)
+        # c1 appears only in dense: rank 1 (1/61)
+        # c2 score = 1/62 + 1/61 > 1/61
+        assert fused[0]["id"] == "c2"
+        assert fused[0]["metadata"]["dense_rank"] == 2
+        assert fused[0]["metadata"]["bm25_rank"] == 1
+        assert fused[1]["id"] == "c1"
+        assert fused[2]["id"] == "c3"
+
+
+class TestHybridAndBM25Search:
+    def test_search_bm25_mode(self, populated_bm25):
+        results = search(
+            "sourdough starter",
+            mode="bm25",
+            bm25_conn=populated_bm25,
+            top_k=2,
+        )
+        assert len(results) >= 1
+        assert results[0].source_file == "bread.md"
+
+    def test_search_semantic_mode(self, populated_collection):
+        results = search(
+            "SQL query",
+            collection=populated_collection,
+            mode="semantic",
+            embed_fn=fake_embed,
+            top_k=2,
+        )
+        assert len(results) == 2
+
+    def test_search_hybrid_mode_with_both(self, populated_collection, populated_bm25):
+        results = search(
+            "baby milestones sitting",
+            collection=populated_collection,
+            bm25_conn=populated_bm25,
+            mode="hybrid",
+            embed_fn=fake_embed,
+            top_k=2,
+        )
+        assert len(results) == 2
+        # Provenance should be populated
+        assert "dense_rank" in results[0].metadata or "bm25_rank" in results[0].metadata
+
+    def test_search_invalid_mode_raises(self, populated_collection):
+        with pytest.raises(ValueError, match="Unknown search mode"):
+            search("test", populated_collection, mode="invalid_mode")
+
+    def test_print_results_formatting(self, populated_collection, populated_bm25, capsys):
+        results = search(
+            "baby",
+            collection=populated_collection,
+            bm25_conn=populated_bm25,
+            mode="hybrid",
+            embed_fn=fake_embed,
+            top_k=1,
+        )
+        print_results(results, "baby", mode="hybrid")
+        captured = capsys.readouterr()
+        assert "Results for:" in captured.out
+        assert "baby.md" in captured.out or "sql.md" in captured.out
+
 

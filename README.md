@@ -1,18 +1,18 @@
 # vault-semantic-search
 
-Semantic search for your Obsidian vault using local embeddings. Search by meaning instead of keywords.
+Semantic, keyword (BM25), and hybrid search for your Obsidian vault using local embeddings and SQLite FTS5.
 
 ```
 $ uv run vsearch search "that discussion about NULL handling in pandas"
 
-Results for: "that discussion about NULL handling in pandas"
+Results for: "that discussion about NULL handling in pandas" (hybrid)
 
-1. [0.87] jamalhansen.com/_series/sql-for-python-devs/posts/11-null-values/draft.md
+1. [0.0325] jamalhansen.com/_series/sql-for-python-devs/posts/11-null-values/draft.md  [dense #1, bm25 #2]
    Section: NULL Values > Python Comparison
    "In pandas, missing values are represented as NaN or None. SQL uses NULL,
     which behaves differently in comparisons..."
 
-2. [0.82] Timeline/2026-02-15.md
+2. [0.0164] Timeline/2026-02-15.md  [dense #2]
    Section: Morning Pages
    "Spent an hour debugging a join that returned fewer rows than expected.
     Turned out the join key had NULLs..."
@@ -22,12 +22,18 @@ Results for: "that discussion about NULL handling in pandas"
 
 Obsidian's built-in search is keyword-only. With 300+ notes, you can't remember the exact words you used. Semantic search finds notes by meaning — you can describe the concept loosely and still find the right file.
 
+Hybrid search combines the best of both worlds:
+- **Semantic (Dense Vector)**: Finds notes conceptually related to your query even when vocabulary differs.
+- **BM25 (Sparse Keyword)**: Excels at exact terms, function names, error messages, and unique identifiers.
+- **Reciprocal Rank Fusion (RRF)**: Merges ranked candidate lists without brittle score calibration.
+- **Zero-Daemon Offline Mode**: BM25 search requires no Ollama or embedding model, enabling instant offline searches.
+
 All processing runs locally. No API keys, no data sent anywhere.
 
 ## Installation
 
 **Prerequisites:**
-- [Ollama](https://ollama.ai) installed and running
+- [Ollama](https://ollama.ai) installed and running (for dense/hybrid search)
 - Pull the default embedding model: `ollama pull nomic-embed-text`
 
 **Install:**
@@ -39,6 +45,8 @@ uv sync
 ## Usage
 
 ### Index your vault
+
+Indexes your markdown files into ChromaDB (vector embeddings) and SQLite FTS5 (BM25 full-text index) simultaneously:
 
 ```bash
 # First run: full index
@@ -60,13 +68,19 @@ uv run vsearch index --vault ~/my-vault
 ### Search
 
 ```bash
-# Natural language query
+# Hybrid search (default: combines semantic vectors + BM25 keyword rankings via RRF)
 uv run vsearch search "baby milestones"
 
-# More results
+# BM25 keyword search only (instant, requires NO running Ollama daemon)
+uv run vsearch search "window functions SQL" --bm25
+
+# Pure semantic search only
+uv run vsearch search "window functions SQL" --semantic
+
+# Request more results
 uv run vsearch search "window functions SQL" --top-k 10
 
-# JSON output (for piping)
+# JSON output (for programmatic piping)
 uv run vsearch search "sourdough hydration" --json
 
 # Paths only (for piping to fzf or xargs)
@@ -112,25 +126,27 @@ By default, these are always excluded:
 ```
 uv run vsearch index   [--vault PATH] [--model MODEL] [--full] [--verbose]
 uv run vsearch search  QUERY [--vault PATH] [--model MODEL] [--top-k N]
-                                  [--json] [--paths-only] [--verbose]
-uv run vsearch stats   [--vault PATH] [--model MODEL]
+                             [--mode hybrid|semantic|bm25] [--bm25] [--semantic]
+                             [--json] [--paths-only] [--verbose]
+uv run vsearch stats   [--vault PATH] [--model MODEL] [--json]
 ```
 
 ## Architecture
 
 ```
-Obsidian Vault → Chunker → Ollama /api/embed → ChromaDB
-                                                     ↓
-                            Query → Embed → Similarity Search → Results
+Obsidian Vault ─┬─> Chunker ─┬─> Ollama /api/embed ─> ChromaDB (Dense) ─────┐
+                │            │                                              ├─> Reciprocal Rank Fusion ─> Ranked Results
+                │            └─> SQLite FTS5 (BM25 Sparse) ─────────────────┘
+                │
+                └─> Change Detection (hash + mtime)
 ```
 
-**Storage:** ChromaDB persists to `~/.local/share/vsearch/chromadb/` (XDG-compliant, outside the vault).
-
-**Chunking:** Markdown-aware. Splits on H1/H2 headers first, then H3/H4, then paragraphs, then word boundaries. YAML frontmatter is stored as metadata, not embedded. Minimum chunk size: 50 tokens. Hard caps: 400 words and 4000 characters per chunk (the char cap handles URL-dense content where BERT tokenizes aggressively regardless of word count).
-
-**Incremental indexing:** Files are re-embedded only when their content hash changes. A full index of 1000+ files takes a few minutes; incremental runs take seconds.
-
-**Embedding model:** Default is `nomic-embed-text` (768 dimensions, Ollama, BERT WordPiece tokenization). Swap with `--model`.
+- **Storage:**
+  - ChromaDB: `~/.local/share/vsearch/chromadb/`
+  - SQLite FTS5: `~/.local/share/vsearch/bm25.db`
+- **Chunking:** Markdown-aware. Splits on H1/H2 headers first, then H3/H4, then paragraphs, then word boundaries. YAML frontmatter is stored as metadata.
+- **Incremental indexing:** Files are re-indexed only when their content hash changes.
+- **Embedding model:** Default is `nomic-embed-text` (768 dimensions, Ollama).
 
 ## Project Structure
 
@@ -139,18 +155,21 @@ This tool follows the [Local-First AI project blueprint](https://github.com/jama
 ```
 vault-semantic-search/
 ├── src/
-│   ├── main.py          # Typer CLI entry point (index, search, stats)
-│   ├── logic.py         # Search and index orchestration
-│   ├── config.py        # Defaults, paths, constants
-│   ├── chunker.py       # Markdown-aware chunking
-│   ├── embeddings.py    # Ollama /api/embed client
-│   ├── store.py         # ChromaDB wrapper (importable by other tools)
-│   ├── indexer.py       # Vault walker
-│   └── search.py        # Query + result formatting
-├── pyproject.toml       # Managed by uv
+│   └── vsearch/
+│       ├── cli.py          # Typer CLI entry points (index, search, stats)
+│       ├── core.py         # Domain orchestrators and pipeline
+│       ├── bm25.py         # SQLite FTS5 BM25 persistence & query
+│       ├── store.py        # ChromaDB wrapper
+│       ├── chunker.py      # Markdown-aware chunking
+│       ├── embeddings.py   # Ollama /api/embed client
+│       ├── indexer.py      # Vault walker & dual-index synchronization
+│       └── search.py       # Query execution, RRF fusion, formatting
+├── pyproject.toml          # Managed by uv
 └── tests/
     ├── conftest.py
-    ├── test_main.py     # CLI integration tests via MockProvider
+    ├── test_bm25.py        # FTS5 indexing, query sanitization, and BM25 tests
+    ├── test_search.py      # Semantic, BM25, and RRF hybrid search tests
+    ├── test_indexer.py     # Dual-index synchronization tests
     └── ...
 ```
 
@@ -166,14 +185,15 @@ uv run pytest
 
 ## Reuse by other tools
 
-`store.py` is designed to be imported by other local-first tools that want to query the same index:
+`store.py` and `bm25.py` are designed to be imported by other local-first tools:
 
 ```python
 from vsearch.store import get_client, get_collection, query
+from vsearch.bm25 import get_bm25_connection, query_bm25
+from vsearch.search import search
 
-client = get_client()
-collection = get_collection(client)
-results = query(collection, my_embedding_vector, top_k=5)
+# High-level hybrid search
+results = search("null handling", collection=collection, bm25_conn=bm25_conn, mode="hybrid")
 ```
 
 Tools using this pattern: `series-cross-link-suggester`.

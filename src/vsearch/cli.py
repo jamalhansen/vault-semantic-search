@@ -13,6 +13,7 @@ from rich.console import Console
 from local_first_common.cli import debug_option, json_option, verbose_option
 from local_first_common.obsidian import find_vault_root
 
+from vsearch.bm25 import bm25_stats, get_bm25_connection
 from vsearch.config import DEFAULT_EMBEDDING_MODEL, DEFAULT_TOP_K, VSEARCH_VAULT_ENV
 from vsearch.embeddings import OllamaError
 from vsearch.indexer import index_vault
@@ -104,6 +105,7 @@ def index(
 
     client = get_client()
     collection = get_collection(client, model=model, vault_root=str(vault_root))
+    bm25_conn = get_bm25_connection()
 
     try:
         result = index_vault(
@@ -112,6 +114,7 @@ def index(
             model=model,
             full=full,
             verbose=verbose,
+            bm25_conn=bm25_conn,
         )
     except OllamaError as e:
         console.print(f"\n[red]Ollama error:[/red] {e}")
@@ -135,13 +138,22 @@ def index(
 
 @app.command()
 def search_cmd(
-    query: Annotated[str, typer.Argument(help="Natural language search query")],
+    query: Annotated[str, typer.Argument(help="Natural language or keyword search query")],
     top_k: Annotated[
         int, typer.Option("--top-k", "-k", help="Number of results")
     ] = DEFAULT_TOP_K,
     model: Annotated[
         str, typer.Option("--model", "-m", help="Ollama embedding model")
     ] = DEFAULT_EMBEDDING_MODEL,
+    mode: Annotated[
+        str, typer.Option("--mode", "-M", help="Search mode: hybrid, semantic, or bm25")
+    ] = "hybrid",
+    bm25: Annotated[
+        bool, typer.Option("--bm25", help="Shortcut for --mode bm25")
+    ] = False,
+    semantic: Annotated[
+        bool, typer.Option("--semantic", help="Shortcut for --mode semantic")
+    ] = False,
     json_output: Annotated[bool, json_option()] = False,
     paths_only: Annotated[
         bool, typer.Option("--paths-only", help="Output file paths only")
@@ -152,13 +164,27 @@ def search_cmd(
     verbose: Annotated[bool, verbose_option()] = False,
     debug: Annotated[bool, debug_option()] = False,
 ) -> None:
-    """Search the vault by meaning."""
+    """Search the vault using hybrid, semantic, or BM25 keyword search."""
+    if bm25:
+        mode = "bm25"
+    elif semantic:
+        mode = "semantic"
+
     vault_root = _resolve_vault(vault)
 
     client = get_client()
     collection = get_collection(client, model=model, vault_root=str(vault_root))
+    bm25_conn = get_bm25_connection()
 
-    if collection.count() == 0:
+    # Check that at least one index is available
+    if mode == "bm25":
+        b_stats = bm25_stats(bm25_conn)
+        if b_stats["total_chunks"] == 0 and collection.count() == 0:
+            console.print(
+                "[yellow]Index is empty.[/yellow] Run [bold]vsearch index[/bold] first."
+            )
+            raise typer.Exit(code=1)
+    elif collection.count() == 0:
         console.print(
             "[yellow]Index is empty.[/yellow] Run [bold]vsearch index[/bold] first."
         )
@@ -167,9 +193,11 @@ def search_cmd(
     try:
         results = search(
             query_text=query,
-            collection=collection,
+            collection=collection if mode != "bm25" else None,
             top_k=top_k,
             model=model,
+            mode=mode,
+            bm25_conn=bm25_conn,
         )
     except OllamaError as e:
         console.print(f"\n[red]Ollama error:[/red] {e}")
@@ -180,7 +208,7 @@ def search_cmd(
     elif paths_only:
         print_results_paths(results)
     else:
-        print_results(results, query_text=query, vault_root=str(vault_root))
+        print_results(results, query_text=query, vault_root=str(vault_root), mode=mode)
 
 
 # ---------------------------------------------------------------------------
@@ -203,16 +231,21 @@ def stats(
 
     client = get_client()
     collection = get_collection(client, model=model, vault_root=str(vault_root))
+    bm25_conn = get_bm25_connection()
 
     s = collection_stats(collection)
+    b_stats = bm25_stats(bm25_conn)
 
     if json_output:
+        s["bm25_chunks"] = b_stats["total_chunks"]
+        s["bm25_files"] = b_stats["total_files"]
         print(json.dumps(s, indent=2))
         return
 
     console.print("\n[bold]Vault Index Stats[/bold]\n")
     console.print(f"  Total chunks : [cyan]{s['total_chunks']}[/cyan]")
     console.print(f"  Total files  : [cyan]{s['total_files']}[/cyan]")
+    console.print(f"  BM25 chunks  : [cyan]{b_stats['total_chunks']}[/cyan]")
     console.print(f"  Model        : [cyan]{s['embedding_model']}[/cyan]")
     console.print(f"  Vault        : [cyan]{s['vault_root']}[/cyan]")
     console.print()

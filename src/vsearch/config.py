@@ -15,7 +15,14 @@ def get_db_path() -> Path:
     return Path(xdg_data) / "vsearch" / "chromadb"
 
 
+def get_bm25_db_path() -> Path:
+    """XDG-compliant path for the SQLite BM25 database."""
+    xdg_data = os.environ.get("XDG_DATA_HOME", str(Path.home() / ".local" / "share"))
+    return Path(xdg_data) / "vsearch" / "bm25.db"
+
+
 COLLECTION_NAME = "vault"
+DEFAULT_SEARCH_MODE = "hybrid"
 
 # --- Ollama ---
 OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")

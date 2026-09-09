@@ -4,6 +4,7 @@
 import chromadb
 import pytest
 
+from vsearch.bm25 import bm25_stats, get_in_memory_bm25_connection, query_bm25
 from vsearch.indexer import (
     _chunk_id,
     _file_hash,
@@ -203,3 +204,45 @@ class TestIndexVault:
         assert m["source_file"] == "meta_test.md"
         assert "mtime" in m
         assert "hash" in m
+
+    def test_indexes_into_bm25(self, sample_vault, collection):
+        bm25_conn = get_in_memory_bm25_connection()
+        res = index_vault(
+            sample_vault,
+            collection,
+            model="nomic-embed-text",
+            embed_fn=fake_embed,
+            bm25_conn=bm25_conn,
+        )
+        assert res.indexed > 0
+        stats = bm25_stats(bm25_conn)
+        assert stats["total_chunks"] > 0
+        assert stats["total_files"] > 0
+
+        # Query BM25 index
+        hits = query_bm25(bm25_conn, "goals", top_k=2)
+        assert len(hits) > 0
+
+    def test_deleted_file_chunks_removed_from_bm25(self, tmp_vault, collection):
+        bm25_conn = get_in_memory_bm25_connection()
+        f = tmp_vault / "removable.md"
+        f.write_text("# Removable\n\nThis is a removable file for testing BM25 cleanup.")
+        index_vault(
+            tmp_vault,
+            collection,
+            model="nomic-embed-text",
+            embed_fn=fake_embed,
+            bm25_conn=bm25_conn,
+        )
+        assert bm25_stats(bm25_conn)["total_chunks"] > 0
+
+        f.unlink()
+        index_vault(
+            tmp_vault,
+            collection,
+            model="nomic-embed-text",
+            embed_fn=fake_embed,
+            bm25_conn=bm25_conn,
+        )
+        assert bm25_stats(bm25_conn)["total_chunks"] == 0
+

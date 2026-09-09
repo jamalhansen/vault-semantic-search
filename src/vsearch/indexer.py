@@ -18,6 +18,13 @@ from rich.progress import (
     TaskProgressColumn,
 )
 
+import sqlite3
+
+from vsearch.bm25 import (
+    delete_bm25_file_chunks,
+    get_in_memory_bm25_connection,
+    upsert_bm25_chunks,
+)
 from vsearch.chunker import chunk_file
 from vsearch.config import (
     DEFAULT_EMBEDDING_MODEL,
@@ -164,8 +171,9 @@ def index_vault(
     full: bool = False,
     verbose: bool = False,
     embed_fn: Optional[Callable] = None,
+    bm25_conn: Optional[sqlite3.Connection] = None,
 ) -> IndexResult:
-    """Index all files in the vault into ChromaDB.
+    """Index all files in the vault into ChromaDB and SQLite FTS5 BM25.
 
     Args:
         vault_root: Root of the Obsidian vault.
@@ -174,8 +182,11 @@ def index_vault(
         full: If True, reindex everything. If False, skip unchanged files.
         verbose: Print extra info.
         embed_fn: Optional override for embed_texts (used in tests).
+        bm25_conn: Optional SQLite connection for BM25 index (in-memory if None).
     """
     _embed = embed_fn or embed_texts
+    if bm25_conn is None:
+        bm25_conn = get_in_memory_bm25_connection()
     result = IndexResult()
 
     files = walk_vault(vault_root)
@@ -206,6 +217,7 @@ def index_vault(
 
                 # Remove stale chunks for this file
                 delete_file_chunks(collection, relative)
+                delete_bm25_file_chunks(bm25_conn, relative)
 
                 chunks = chunk_file(file_path, vault_root)
                 if not chunks:
@@ -239,6 +251,7 @@ def index_vault(
                     metadatas.append(meta)
 
                 upsert_chunks(collection, ids, embeddings, documents, metadatas)
+                upsert_bm25_chunks(bm25_conn, ids, documents, metadatas)
                 result.indexed += 1
 
                 if verbose:
@@ -254,7 +267,9 @@ def index_vault(
 
     # Remove chunks for files that no longer exist in the vault
     if not full:
-        result.deleted += _cleanup_deleted_files(collection, indexed_files, verbose)
+        result.deleted += _cleanup_deleted_files(
+            collection, indexed_files, verbose, bm25_conn=bm25_conn
+        )
 
     return result
 
@@ -263,6 +278,7 @@ def _cleanup_deleted_files(
     collection: chromadb.Collection,
     current_files: set[str],
     verbose: bool = False,
+    bm25_conn: Optional[sqlite3.Connection] = None,
 ) -> int:
     """Delete chunks for files that were removed from the vault."""
     if collection.count() == 0:
@@ -275,6 +291,8 @@ def _cleanup_deleted_files(
 
     for source_file in removed:
         n = delete_file_chunks(collection, source_file)
+        if bm25_conn is not None:
+            delete_bm25_file_chunks(bm25_conn, source_file)
         total_deleted += n
         if verbose:
             console.print(f"  [yellow]removed[/yellow] {source_file} ({n} chunks)")
