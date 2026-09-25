@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-import frontmatter
+from local_first_common.obsidian import parse_frontmatter_text
 
 from vsearch.config import (
     MAX_CHUNK_CHARS,
@@ -50,12 +50,8 @@ _FRONTMATTER_FIELDS = {
 
 def _extract_frontmatter(content: str) -> tuple[dict, str]:
     """Parse YAML frontmatter and return (meta_dict, body_without_frontmatter)."""
-    try:
-        post = frontmatter.loads(content)
-        meta = {k: v for k, v in post.metadata.items() if k in _FRONTMATTER_FIELDS}
-        return meta, post.content
-    except Exception:
-        return {}, content
+    meta, body = parse_frontmatter_text(content)
+    return {k: v for k, v in meta.items() if k in _FRONTMATTER_FIELDS}, body
 
 
 # ---------------------------------------------------------------------------
