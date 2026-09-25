@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 import httpx
 import pytest
 
-from vsearch.embeddings import OllamaError, embed_texts, _embed_batch
+from vsearch.embeddings import OllamaError, _embed_batch, embed_texts
 
 
 class TestEmbedTexts:
@@ -57,26 +57,22 @@ class TestEmbedBatch:
         assert result == fake_embeds
 
     def test_connect_error_raises_ollama_error(self):
-        with patch("httpx.post", side_effect=httpx.ConnectError("refused")):
-            with pytest.raises(OllamaError, match="Ollama is not running"):
-                _embed_batch(["text"], "nomic-embed-text")
+        with patch("httpx.post", side_effect=httpx.ConnectError("refused")), pytest.raises(OllamaError, match="Ollama is not running"):
+            _embed_batch(["text"], "nomic-embed-text")
 
     def test_timeout_raises_ollama_error(self):
-        with patch("httpx.post", side_effect=httpx.TimeoutException("timeout")):
-            with pytest.raises(OllamaError, match="timed out"):
-                _embed_batch(["text"], "nomic-embed-text")
+        with patch("httpx.post", side_effect=httpx.TimeoutException("timeout")), pytest.raises(OllamaError, match="timed out"):
+            _embed_batch(["text"], "nomic-embed-text")
 
     def test_404_raises_model_not_found(self):
         mock = self._mock_response([], status_code=404)
-        with patch("httpx.post", return_value=mock):
-            with pytest.raises(OllamaError, match="not found in Ollama"):
-                _embed_batch(["text"], "bad-model")
+        with patch("httpx.post", return_value=mock), pytest.raises(OllamaError, match="not found in Ollama"):
+            _embed_batch(["text"], "bad-model")
 
     def test_500_raises_ollama_error(self):
         mock = self._mock_response([], status_code=500)
-        with patch("httpx.post", return_value=mock):
-            with pytest.raises(OllamaError, match="Ollama returned an error"):
-                _embed_batch(["text"], "nomic-embed-text")
+        with patch("httpx.post", return_value=mock), pytest.raises(OllamaError, match="Ollama returned an error"):
+            _embed_batch(["text"], "nomic-embed-text")
 
     def test_400_batch_falls_back_to_singleton_calls(self):
         """A 400 on a multi-item batch retries each item individually."""
@@ -106,9 +102,8 @@ class TestEmbedBatch:
     def test_400_single_raises_ollama_error(self):
         """A 400 on a single-item batch still raises OllamaError."""
         mock = self._mock_response([], status_code=400)
-        with patch("httpx.post", return_value=mock):
-            with pytest.raises(OllamaError):
-                _embed_batch(["text"], "nomic-embed-text")
+        with patch("httpx.post", return_value=mock), pytest.raises(OllamaError):
+            _embed_batch(["text"], "nomic-embed-text")
 
     def test_passes_model_to_ollama(self):
         fake_embeds = [[0.1]]

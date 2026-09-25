@@ -1,7 +1,7 @@
 import json
 import sqlite3
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, Optional
 
 import chromadb
 from rich.console import Console
@@ -91,12 +91,12 @@ def reciprocal_rank_fusion(
 
 def search(
     query_text: str,
-    collection: Optional[chromadb.Collection] = None,
+    collection: chromadb.Collection | None = None,
     top_k: int = DEFAULT_TOP_K,
     model: str = DEFAULT_EMBEDDING_MODEL,
-    embed_fn: Optional[Callable] = None,
+    embed_fn: Callable | None = None,
     mode: str = DEFAULT_SEARCH_MODE,
-    bm25_conn: Optional[sqlite3.Connection] = None,
+    bm25_conn: sqlite3.Connection | None = None,
 ) -> list[SearchResult]:
     """Search the vault using hybrid, semantic, or BM25 search.
 
@@ -139,7 +139,7 @@ def search(
         if conn is None:
             try:
                 conn = get_bm25_connection()
-            except Exception:
+            except (sqlite3.Error, OSError):
                 conn = None
         if conn is not None:
             bm25_hits = query_bm25(conn, query_text, top_k=candidate_k)
@@ -193,7 +193,7 @@ def _make_snippet(text: str, length: int = SNIPPET_LENGTH) -> str:
 def print_results(
     results: list[SearchResult],
     query_text: str,
-    vault_root: Optional[str] = None,
+    vault_root: str | None = None,
     mode: str = "hybrid",
 ) -> None:
     """Print results using Rich formatting."""

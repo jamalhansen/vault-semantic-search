@@ -7,19 +7,17 @@ without triggering CLI or Typer initialization.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import chromadb
 from chromadb.api import ClientAPI
 
 from vsearch.config import COLLECTION_NAME, DEFAULT_EMBEDDING_MODEL, get_db_path
 
-
 # ---------------------------------------------------------------------------
 # Client factory
 # ---------------------------------------------------------------------------
 
-def get_client(db_path: Optional[Path] = None) -> ClientAPI:
+def get_client(db_path: Path | None = None) -> ClientAPI:
     """Return a persistent ChromaDB client at the given path (or default)."""
     path = db_path or get_db_path()
     path.mkdir(parents=True, exist_ok=True)
@@ -38,7 +36,7 @@ def get_in_memory_client() -> ClientAPI:
 def get_collection(
     client: ClientAPI,
     model: str = DEFAULT_EMBEDDING_MODEL,
-    vault_root: Optional[str] = None,
+    vault_root: str | None = None,
 ) -> chromadb.Collection:
     """Get or create the vault collection with the given embedding model."""
     meta: dict = {
@@ -81,7 +79,7 @@ def delete_file_chunks(collection: chromadb.Collection, source_file: str) -> int
 
 def get_file_metadata(
     collection: chromadb.Collection, source_file: str
-) -> Optional[dict]:
+) -> dict | None:
     """Return the stored mtime/hash metadata for a file, or None if not indexed."""
     results = collection.get(
         where={"source_file": {"$eq": source_file}},

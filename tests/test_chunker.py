@@ -2,15 +2,14 @@
 
 from pathlib import Path
 
-
 from vsearch.chunker import (
     ChunkParseError,
     _extract_frontmatter,
     _parse_sections,
     chunk_file,
 )
+from vsearch.cli import VaultDetectionError, VSearchError
 from vsearch.indexer import IndexFileError
-from vsearch.cli import VSearchError, VaultDetectionError
 
 
 class TestTypedErrors:
@@ -56,7 +55,7 @@ class TestExtractFrontmatter:
     def test_malformed_frontmatter_returns_empty_meta(self):
         content = "---\nnot: yaml: valid:\n---\nBody."
         # Should not raise; returns something reasonable
-        meta, body = _extract_frontmatter(content)
+        meta, _body = _extract_frontmatter(content)
         assert isinstance(meta, dict)
 
 

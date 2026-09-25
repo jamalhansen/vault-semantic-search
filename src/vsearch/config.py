@@ -3,7 +3,6 @@
 import os
 from pathlib import Path
 
-
 # --- Embedding model ---
 DEFAULT_EMBEDDING_MODEL = "nomic-embed-text"
 EMBEDDING_BATCH_SIZE = 32

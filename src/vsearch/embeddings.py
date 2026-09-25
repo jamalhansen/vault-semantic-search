@@ -3,16 +3,15 @@
 from __future__ import annotations
 
 import httpx
-
 from local_first_common.tracking import register_tool, timed_run
+
 from vsearch.config import (
-    EMBEDDING_BATCH_SIZE,
     DEFAULT_EMBEDDING_MODEL,
-    OLLAMA_EMBED_URL,
+    EMBEDDING_BATCH_SIZE,
     OLLAMA_EMBED_NUM_CTX,
+    OLLAMA_EMBED_URL,
     OLLAMA_TIMEOUT,
 )
-
 
 _TOOL = register_tool("vault-semantic-search")
 

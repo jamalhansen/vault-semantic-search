@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 from local_first_common.obsidian import parse_frontmatter_text
 
@@ -248,8 +247,8 @@ def chunk_file(
     # A tiny piece (< min_tokens) is attached to the next piece.
     # Once a piece crosses min_tokens after merging, commit it.
     merged: list[tuple[str, str]] = []
-    pending_text: Optional[str] = None
-    pending_crumb: Optional[str] = None
+    pending_text: str | None = None
+    pending_crumb: str | None = None
 
     for text, crumb in raw_pieces:
         if pending_text is not None:

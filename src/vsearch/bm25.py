@@ -9,7 +9,6 @@ from __future__ import annotations
 import re
 import sqlite3
 from pathlib import Path
-from typing import Optional
 
 from vsearch.config import get_bm25_db_path
 
@@ -25,7 +24,7 @@ CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
 """
 
 
-def get_bm25_connection(db_path: Optional[Path] = None) -> sqlite3.Connection:
+def get_bm25_connection(db_path: Path | None = None) -> sqlite3.Connection:
     """Return an SQLite connection with the FTS5 chunks table created."""
     path = db_path or get_bm25_db_path()
     path.parent.mkdir(parents=True, exist_ok=True)

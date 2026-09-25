@@ -31,8 +31,9 @@ packages = ["src/vsearch"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [
-    "integration: tests that require Ollama to be running",
+    "integration: tests that require Ollama with nomic-embed-text (run with: pytest -m integration)",
 ]
+addopts = "-m 'not integration'"
 pythonpath = ["src"]
 
 [tool.uv.sources]

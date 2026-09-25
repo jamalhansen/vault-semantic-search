@@ -4,21 +4,20 @@ from __future__ import annotations
 
 import fnmatch
 import hashlib
+import sqlite3
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Optional
 
 import chromadb
 from rich.console import Console
 from rich.progress import (
+    BarColumn,
     Progress,
     SpinnerColumn,
-    TextColumn,
-    BarColumn,
     TaskProgressColumn,
+    TextColumn,
 )
-
-import sqlite3
 
 from vsearch.bm25 import (
     delete_bm25_file_chunks,
@@ -122,7 +121,7 @@ def _mtime_str(path: Path) -> str:
 
 
 def file_needs_reindex(
-    path: Path, collection: chromadb.Collection, vault_root: Optional[Path] = None
+    path: Path, collection: chromadb.Collection, vault_root: Path | None = None
 ) -> bool:
     """Return True if the file is new or has changed since last index.
 
@@ -170,8 +169,8 @@ def index_vault(
     model: str = DEFAULT_EMBEDDING_MODEL,
     full: bool = False,
     verbose: bool = False,
-    embed_fn: Optional[Callable] = None,
-    bm25_conn: Optional[sqlite3.Connection] = None,
+    embed_fn: Callable | None = None,
+    bm25_conn: sqlite3.Connection | None = None,
 ) -> IndexResult:
     """Index all files in the vault into ChromaDB and SQLite FTS5 BM25.
 
@@ -259,7 +258,7 @@ def index_vault(
                         f"  [green]✓[/green] {relative} ({len(chunks)} chunks)"
                     )
 
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - one bad file is counted and reported; it must not stop the whole index run
                 result.errors += 1
                 console.print(f"  [red]✗[/red] {relative}: {e}")
 
@@ -278,7 +277,7 @@ def _cleanup_deleted_files(
     collection: chromadb.Collection,
     current_files: set[str],
     verbose: bool = False,
-    bm25_conn: Optional[sqlite3.Connection] = None,
+    bm25_conn: sqlite3.Connection | None = None,
 ) -> int:
     """Delete chunks for files that were removed from the vault."""
     if collection.count() == 0:

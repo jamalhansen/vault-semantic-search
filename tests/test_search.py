@@ -17,7 +17,6 @@ from vsearch.search import (
 )
 from vsearch.store import get_collection, upsert_chunks
 
-
 FAKE_DIM = 3
 
 
@@ -152,9 +151,11 @@ class TestPrintResultsPaths:
         assert all("/" not in ln or ln.count("\n") == 0 for ln in lines)
 
     def test_stats_json(self, populated_collection, tmp_path, capsys):
+        from unittest import mock
+
         from typer.testing import CliRunner
+
         from vsearch.cli import app
-        import unittest.mock as mock
 
         runner = CliRunner()
         with mock.patch("vsearch.cli.get_collection", return_value=populated_collection):

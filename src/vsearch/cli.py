@@ -2,16 +2,15 @@
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
-import json
-from rich.console import Console
-
 from local_first_common.cli import debug_option, json_option, verbose_option
 from local_first_common.obsidian import find_vault_root
+from rich.console import Console
 
 from vsearch.bm25 import bm25_stats, get_bm25_connection
 from vsearch.config import DEFAULT_EMBEDDING_MODEL, DEFAULT_TOP_K, VSEARCH_VAULT_ENV
@@ -45,7 +44,7 @@ class VaultDetectionError(VSearchError):
 # ---------------------------------------------------------------------------
 
 
-def _resolve_vault(vault_str: Optional[str]) -> Path:
+def _resolve_vault(vault_str: str | None) -> Path:
     """Resolve vault root: CLI flag > VSEARCH_VAULT env > auto-detect."""
     if vault_str:
         p = Path(vault_str).expanduser().resolve()
@@ -66,7 +65,7 @@ def _resolve_vault(vault_str: Optional[str]) -> Path:
         return find_vault_root()
     except VaultDetectionError:
         raise
-    except Exception:
+    except Exception:  # noqa: BLE001 - any detection failure gets the same actionable message and exit 1
         console.print(
             "[red]Error:[/red] Could not auto-detect Obsidian vault. "
             "Set --vault, or the VSEARCH_VAULT environment variable."
@@ -82,7 +81,7 @@ def _resolve_vault(vault_str: Optional[str]) -> Path:
 @app.command()
 def index(
     vault: Annotated[
-        Optional[str], typer.Option("--vault", "-V", help="Path to vault root")
+        str | None, typer.Option("--vault", "-V", help="Path to vault root")
     ] = None,
     model: Annotated[
         str, typer.Option("--model", "-m", help="Ollama embedding model")
@@ -159,7 +158,7 @@ def search_cmd(
         bool, typer.Option("--paths-only", help="Output file paths only")
     ] = False,
     vault: Annotated[
-        Optional[str], typer.Option("--vault", "-V", help="Path to vault root")
+        str | None, typer.Option("--vault", "-V", help="Path to vault root")
     ] = None,
     verbose: Annotated[bool, verbose_option()] = False,
     debug: Annotated[bool, debug_option()] = False,
@@ -219,7 +218,7 @@ def search_cmd(
 @app.command()
 def stats(
     vault: Annotated[
-        Optional[str], typer.Option("--vault", "-V", help="Path to vault root")
+        str | None, typer.Option("--vault", "-V", help="Path to vault root")
     ] = None,
     model: Annotated[
         str, typer.Option("--model", "-m", help="Ollama embedding model")

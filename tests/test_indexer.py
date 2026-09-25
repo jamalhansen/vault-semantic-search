@@ -15,7 +15,6 @@ from vsearch.indexer import (
 )
 from vsearch.store import get_collection, upsert_chunks
 
-
 FAKE_DIM = 3
 
 
