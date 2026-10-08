@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import pytest
+from chromadb.api.client import SharedSystemClient
 from local_first_common.testing import isolate_tracking_db  # noqa: F401
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -35,3 +36,16 @@ def isolated_bm25_index(tmp_path: Path, monkeypatch):
     from vsearch import bm25
 
     monkeypatch.setattr(bm25, "get_bm25_db_path", lambda: tmp_path / "bm25-test.db")
+
+
+@pytest.fixture(autouse=True)
+def release_chroma_clients():
+    """Drop ChromaDB's cached client systems after each test.
+
+    Every PersistentClient(tmp_path) keeps its SQLite files open for the life of the
+    process; with ~120 tests that passed 256 open files -- launchd's default limit for
+    jobs -- and the store tests died with SQLITE_CANTOPEN under repo-health while passing
+    in any shell (2026-10-07). Clearing the cache lets the systems close.
+    """
+    yield
+    SharedSystemClient.clear_system_cache()
