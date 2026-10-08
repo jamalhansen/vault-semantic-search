@@ -17,6 +17,7 @@ from vsearch.config import COLLECTION_NAME, DEFAULT_EMBEDDING_MODEL, get_db_path
 # Client factory
 # ---------------------------------------------------------------------------
 
+
 def get_client(db_path: Path | None = None) -> ClientAPI:
     """Return a persistent ChromaDB client at the given path (or default)."""
     path = db_path or get_db_path()
@@ -32,6 +33,7 @@ def get_in_memory_client() -> ClientAPI:
 # ---------------------------------------------------------------------------
 # Collection factory
 # ---------------------------------------------------------------------------
+
 
 def get_collection(
     client: ClientAPI,
@@ -51,6 +53,7 @@ def get_collection(
 # ---------------------------------------------------------------------------
 # CRUD helpers
 # ---------------------------------------------------------------------------
+
 
 def upsert_chunks(
     collection: chromadb.Collection,
@@ -77,9 +80,7 @@ def delete_file_chunks(collection: chromadb.Collection, source_file: str) -> int
     return len(ids)
 
 
-def get_file_metadata(
-    collection: chromadb.Collection, source_file: str
-) -> dict | None:
+def get_file_metadata(collection: chromadb.Collection, source_file: str) -> dict | None:
     """Return the stored mtime/hash metadata for a file, or None if not indexed."""
     results = collection.get(
         where={"source_file": {"$eq": source_file}},

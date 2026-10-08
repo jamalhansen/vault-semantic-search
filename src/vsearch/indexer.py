@@ -87,9 +87,7 @@ def _should_skip(path: Path, vault_root: Path, ignore_patterns: list[str]) -> bo
     # Apply .vsearchignore patterns
     relative_str = str(relative)
     for pattern in ignore_patterns:
-        if fnmatch.fnmatch(relative_str, pattern) or fnmatch.fnmatch(
-            path.name, pattern
-        ):
+        if fnmatch.fnmatch(relative_str, pattern) or fnmatch.fnmatch(path.name, pattern):
             return True
 
     return False
@@ -120,9 +118,7 @@ def _mtime_str(path: Path) -> str:
     return str(path.stat().st_mtime)
 
 
-def file_needs_reindex(
-    path: Path, collection: chromadb.Collection, vault_root: Path | None = None
-) -> bool:
+def file_needs_reindex(path: Path, collection: chromadb.Collection, vault_root: Path | None = None) -> bool:
     """Return True if the file is new or has changed since last index.
 
     Uses the relative path (from vault_root) to look up stored metadata.
@@ -207,9 +203,7 @@ def index_vault(
             progress.update(task, description=f"[cyan]{relative}[/cyan]")
 
             try:
-                if not full and not file_needs_reindex(
-                    file_path, collection, vault_root
-                ):
+                if not full and not file_needs_reindex(file_path, collection, vault_root):
                     result.skipped += 1
                     progress.advance(task)
                     continue
@@ -254,9 +248,7 @@ def index_vault(
                 result.indexed += 1
 
                 if verbose:
-                    console.print(
-                        f"  [green]✓[/green] {relative} ({len(chunks)} chunks)"
-                    )
+                    console.print(f"  [green]✓[/green] {relative} ({len(chunks)} chunks)")
 
             except Exception as e:  # noqa: BLE001 - one bad file is counted and reported; it must not stop the whole index run
                 result.errors += 1
@@ -266,9 +258,7 @@ def index_vault(
 
     # Remove chunks for files that no longer exist in the vault
     if not full:
-        result.deleted += _cleanup_deleted_files(
-            collection, indexed_files, verbose, bm25_conn=bm25_conn
-        )
+        result.deleted += _cleanup_deleted_files(collection, indexed_files, verbose, bm25_conn=bm25_conn)
 
     return result
 

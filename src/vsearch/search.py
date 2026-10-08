@@ -66,9 +66,7 @@ def reciprocal_rank_fusion(
             items[cid] = hit
         ranks.setdefault(cid, {})["bm25"] = rank
 
-    sorted_ids = sorted(
-        scores.keys(), key=lambda cid: scores[cid], reverse=True
-    )[:top_k]
+    sorted_ids = sorted(scores.keys(), key=lambda cid: scores[cid], reverse=True)[:top_k]
     fused: list[dict] = []
     for cid in sorted_ids:
         item = items[cid]
@@ -190,6 +188,7 @@ def _make_snippet(text: str, length: int = SNIPPET_LENGTH) -> str:
 # Output formatters
 # ---------------------------------------------------------------------------
 
+
 def print_results(
     results: list[SearchResult],
     query_text: str,
@@ -216,11 +215,7 @@ def print_results(
             header.append(r.source_file, style="cyan")
             header.append(f"  [{', '.join(sources)}]", style="dim")
         else:
-            score_color = (
-                "green"
-                if r.score >= 0.7
-                else ("yellow" if r.score >= 0.5 else "red")
-            )
+            score_color = "green" if r.score >= 0.7 else ("yellow" if r.score >= 0.5 else "red")
             header.append(f"[{r.score:.2f}] ", style=score_color)
             header.append(r.source_file, style="cyan")
 

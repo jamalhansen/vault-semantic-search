@@ -56,20 +56,14 @@ def _embed_batch(texts: list[str], model: str) -> list[list[float]]:
             )
             run.item_count = len(texts)
     except httpx.ConnectError:
-        raise OllamaError(
-            "Ollama is not running. Start it with `ollama serve` or check that it's installed."
-        )
+        raise OllamaError("Ollama is not running. Start it with `ollama serve` or check that it's installed.") from None
     except httpx.TimeoutException:
         raise OllamaError(
-            f"Ollama request timed out after {OLLAMA_TIMEOUT}s. "
-            "Try reducing batch size or using a lighter model."
-        )
+            f"Ollama request timed out after {OLLAMA_TIMEOUT}s. Try reducing batch size or using a lighter model."
+        ) from None
 
     if response.status_code == 404:
-        raise OllamaError(
-            f"Model '{model}' not found in Ollama. "
-            f"Pull it with: ollama pull {model}"
-        )
+        raise OllamaError(f"Model '{model}' not found in Ollama. Pull it with: ollama pull {model}")
 
     if response.status_code == 400 and len(texts) > 1:
         # A chunk in this batch may exceed the context window — retry one at a time

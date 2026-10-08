@@ -124,9 +124,7 @@ def _split_on_paragraphs(text: str, breadcrumb: str) -> list[tuple[str, str]]:
     return [(p, breadcrumb) for p in paras]
 
 
-def _split_by_words(
-    text: str, breadcrumb: str, max_tokens: int
-) -> list[tuple[str, str]]:
+def _split_by_words(text: str, breadcrumb: str, max_tokens: int) -> list[tuple[str, str]]:
     """Split text on word boundaries to enforce max_tokens and MAX_CHUNK_CHARS.
 
     Uses a char-based limit as a secondary guard for URL-dense or code-heavy content
@@ -141,9 +139,7 @@ def _split_by_words(
     current_chars = 0
     for word in words:
         word_chars = len(word) + (1 if current else 0)  # +1 for space separator
-        if current and (
-            len(current) >= max_words or current_chars + word_chars > MAX_CHUNK_CHARS
-        ):
+        if current and (len(current) >= max_words or current_chars + word_chars > MAX_CHUNK_CHARS):
             chunks.append((" ".join(current), breadcrumb))
             current = [word]
             current_chars = len(word)
@@ -155,9 +151,7 @@ def _split_by_words(
     return chunks
 
 
-def _split_large_section(
-    body: str, breadcrumb: str, max_tokens: int
-) -> list[tuple[str, str]]:
+def _split_large_section(body: str, breadcrumb: str, max_tokens: int) -> list[tuple[str, str]]:
     """Recursively split a large section body by H3/H4, then paragraphs."""
     if _token_estimate(body) <= max_tokens and len(body) <= MAX_CHUNK_CHARS:
         return [(body, breadcrumb)]
@@ -187,10 +181,7 @@ def _split_large_section(
                 chunks.append(("\n\n".join(current_parts), crumb))
                 current_parts = []
             # Paragraph itself may be oversized — word-split it before adding
-            if (
-                _token_estimate(para_text) > max_tokens
-                or len(para_text) > MAX_CHUNK_CHARS
-            ):
+            if _token_estimate(para_text) > max_tokens or len(para_text) > MAX_CHUNK_CHARS:
                 chunks.extend(_split_by_words(para_text, crumb, max_tokens))
             else:
                 current_parts = [para_text]
@@ -235,10 +226,7 @@ def chunk_file(
                 _update_breadcrumb(breadcrumb_stack, level, header)
             continue
         crumb = _update_breadcrumb(breadcrumb_stack, level, header)
-        if (
-            _token_estimate(section_body) > max_tokens
-            or len(section_body) > MAX_CHUNK_CHARS
-        ):
+        if _token_estimate(section_body) > max_tokens or len(section_body) > MAX_CHUNK_CHARS:
             raw_pieces.extend(_split_large_section(section_body, crumb, max_tokens))
         else:
             raw_pieces.append((section_body, crumb))

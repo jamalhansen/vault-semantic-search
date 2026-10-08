@@ -1,6 +1,5 @@
 """Tests for vsearch.bm25 SQLite FTS5 search index."""
 
-
 import pytest
 
 from vsearch.bm25 import (
@@ -48,9 +47,7 @@ class TestSanitizeQuery:
 
 class TestBM25Store:
     def test_init_creates_table(self, mem_conn):
-        cur = mem_conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='chunks_fts'"
-        )
+        cur = mem_conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='chunks_fts'")
         assert cur.fetchone() is not None
 
     def test_persistent_connection(self, tmp_path):

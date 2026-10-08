@@ -45,9 +45,7 @@ class TestEmbedBatch:
         mock.json.return_value = {"embeddings": embeddings}
         mock.raise_for_status = MagicMock()
         if status_code >= 400:
-            mock.raise_for_status.side_effect = httpx.HTTPStatusError(
-                "error", request=MagicMock(), response=mock
-            )
+            mock.raise_for_status.side_effect = httpx.HTTPStatusError("error", request=MagicMock(), response=mock)
         return mock
 
     def test_successful_embed(self):
@@ -57,11 +55,17 @@ class TestEmbedBatch:
         assert result == fake_embeds
 
     def test_connect_error_raises_ollama_error(self):
-        with patch("httpx.post", side_effect=httpx.ConnectError("refused")), pytest.raises(OllamaError, match="Ollama is not running"):
+        with (
+            patch("httpx.post", side_effect=httpx.ConnectError("refused")),
+            pytest.raises(OllamaError, match="Ollama is not running"),
+        ):
             _embed_batch(["text"], "nomic-embed-text")
 
     def test_timeout_raises_ollama_error(self):
-        with patch("httpx.post", side_effect=httpx.TimeoutException("timeout")), pytest.raises(OllamaError, match="timed out"):
+        with (
+            patch("httpx.post", side_effect=httpx.TimeoutException("timeout")),
+            pytest.raises(OllamaError, match="timed out"),
+        ):
             _embed_batch(["text"], "nomic-embed-text")
 
     def test_404_raises_model_not_found(self):

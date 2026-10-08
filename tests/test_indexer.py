@@ -1,6 +1,5 @@
 """Tests for vsearch.indexer."""
 
-
 import chromadb
 import pytest
 
@@ -102,9 +101,7 @@ class TestWalkVault:
         (tmp_vault / "private.md").write_text(
             "# Private\n\nContent that should be excluded from semantic search indexing."
         )
-        (tmp_vault / "public.md").write_text(
-            "# Public\n\nContent that should be included in semantic search indexing."
-        )
+        (tmp_vault / "public.md").write_text("# Public\n\nContent that should be included in semantic search indexing.")
         (tmp_vault / ".vsearchignore").write_text("private.md\n")
         files = walk_vault(tmp_vault)
         names = [f.name for f in files]
@@ -150,9 +147,7 @@ class TestFileNeedsReindex:
 
 class TestIndexVault:
     def test_indexes_all_files(self, sample_vault, collection):
-        result = index_vault(
-            sample_vault, collection, model="nomic-embed-text", embed_fn=fake_embed
-        )
+        result = index_vault(sample_vault, collection, model="nomic-embed-text", embed_fn=fake_embed)
         assert result.indexed > 0
         assert result.errors == 0
 
@@ -162,17 +157,13 @@ class TestIndexVault:
         initial_count = collection.count()
 
         # Second run: nothing changed → all skipped
-        result = index_vault(
-            sample_vault, collection, model="nomic-embed-text", embed_fn=fake_embed
-        )
+        result = index_vault(sample_vault, collection, model="nomic-embed-text", embed_fn=fake_embed)
         assert result.indexed == 0
         assert collection.count() == initial_count
 
     def test_full_flag_reindexes_everything(self, sample_vault, collection):
         index_vault(sample_vault, collection, model="nomic-embed-text", embed_fn=fake_embed)
-        result = index_vault(
-            sample_vault, collection, model="nomic-embed-text", full=True, embed_fn=fake_embed
-        )
+        result = index_vault(sample_vault, collection, model="nomic-embed-text", full=True, embed_fn=fake_embed)
         assert result.indexed > 0
 
     def test_deleted_file_chunks_are_removed(self, tmp_vault, collection):
@@ -192,9 +183,7 @@ class TestIndexVault:
 
     def test_metadata_stored_on_chunks(self, tmp_vault, collection):
         f = tmp_vault / "meta_test.md"
-        f.write_text(
-            "---\ntitle: Test Note\ntags: [a, b]\n---\n\n# Test\n\nContent for metadata test."
-        )
+        f.write_text("---\ntitle: Test Note\ntags: [a, b]\n---\n\n# Test\n\nContent for metadata test.")
         index_vault(tmp_vault, collection, model="nomic-embed-text", embed_fn=fake_embed)
         results = collection.get(include=["metadatas"])
         metas = results["metadatas"]
@@ -244,4 +233,3 @@ class TestIndexVault:
             bm25_conn=bm25_conn,
         )
         assert bm25_stats(bm25_conn)["total_chunks"] == 0
-

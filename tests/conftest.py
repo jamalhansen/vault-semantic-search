@@ -21,3 +21,17 @@ def tmp_vault(tmp_path: Path) -> Path:
     obsidian = tmp_path / ".obsidian"
     obsidian.mkdir()
     return tmp_path
+
+
+@pytest.fixture(autouse=True)
+def isolated_bm25_index(tmp_path: Path, monkeypatch):
+    """Keep every test off the real BM25 index.
+
+    search() in hybrid mode (the default) opens the on-disk index when no bm25_conn is
+    passed, so a test with an empty Chroma collection still got hits from the actual
+    vault -- test_empty_collection_returns_empty failed that way for weeks (fixed
+    2026-10-07). bm25.py imports the path helper by name, so patch it there.
+    """
+    from vsearch import bm25
+
+    monkeypatch.setattr(bm25, "get_bm25_db_path", lambda: tmp_path / "bm25-test.db")

@@ -52,7 +52,7 @@ def sanitize_query(query: str) -> str:
     Extracts quoted phrases and individual alphanumeric words.
     Escapes them in quotes to prevent FTS5 syntax errors.
     """
-    tokens = re.findall(r'\"([^\"]+)\"|(\w+)', query)
+    tokens = re.findall(r"\"([^\"]+)\"|(\w+)", query)
     terms: list[str] = []
     for phrase, word in tokens:
         if phrase:
@@ -94,9 +94,7 @@ def upsert_bm25_chunks(
 def delete_bm25_file_chunks(conn: sqlite3.Connection, source_file: str) -> int:
     """Delete all chunks for a given source file. Returns deleted count."""
     with conn:
-        cur = conn.execute(
-            "DELETE FROM chunks_fts WHERE source_file = ?", (source_file,)
-        )
+        cur = conn.execute("DELETE FROM chunks_fts WHERE source_file = ?", (source_file,))
         return cur.rowcount
 
 

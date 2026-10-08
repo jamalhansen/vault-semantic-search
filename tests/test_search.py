@@ -256,5 +256,3 @@ class TestHybridAndBM25Search:
         captured = capsys.readouterr()
         assert "Results for:" in captured.out
         assert "baby.md" in captured.out or "sql.md" in captured.out
-
-
